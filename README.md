@@ -33,11 +33,10 @@ This IDE simplifies writing p5.js sketches in Python by abstracting away the glo
 3.  **Auto-Prefixing**: The analyzer identifies calls to p5 functions (like `rect`, `fill`, `stroke`)  and variables (like `width`, `height`, `mouseX`, `mouseY`). It compares them against the properties of the p5 instance.
     - If a name matches a p5 property and is **not** defined by you (the user) in the script, it automatically prefixes it with `p5.`.
     - Example: `rect(10, 10, 50, 50)` becomes `p5.rect(10, 10, 50, 50)` internally.
-    - Example: `rect(10, 10, 50, 50)` becomes `p5.rect(10, 10, 50, 50)` internally.
     - Example: `print("Hello")` remains `print("Hello")` (uses Python's standard print).
 
 ### Snake Case Support
-You can optionally write p5.js code using `snake_case` (Pythonic style), and the IDE will automatically convert it to `camelCase` (p5.js style).
+You can optionally write p5.js code using `snake_case` (as recommended by [PEP8](https://peps.python.org/pep-0008/)), and the IDE will automatically convert it internally to `camelCase` (p5.js style).
 - **Supported**: `create_canvas(400, 400)`, `background_color`, `mouse_x`.
 - **Mechanism**: The AST transformer checks for snake_case versions of p5 properties and maps them.
 - **Shadowing**: If you define `create_canvas` yourself, the auto-conversion remains disabled for that scope.
@@ -67,9 +66,6 @@ The project offers two ways to interact with sketches:
 ### URL Parameters
 You can load sketches or projects directly via URL parameters in **both** `ide.html` and `view.html`.
 
-- `?sketch=<url>`: Loads a project from an external URL. This can be:
-    - A single Python file (`.py`): e.g., `?sketch=demo/webGLDemo.py`
-    - A compressed Project (`.zip`): e.g., `?sketch=demo/loadImageDemo.zip`
 - `?sketch=<url>`: Loads a project from an external URL. This can be:
     - A single Python file (`.py`): e.g., `?sketch=demo/webGLDemo.py`
     - A compressed Project (`.zip`): e.g., `?sketch=demo/loadImageDemo.zip`
