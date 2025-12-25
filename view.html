@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Py5Script Viewer</title>
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { background: #000; overflow: hidden; }
+        #runner-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        #controls {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            opacity: 0.2;
+            transition: opacity 0.3s;
+        }
+        #controls:hover { opacity: 1; }
+        #console-overlay {
+            position: fixed;
+            bottom: 50px;
+            right: 10px;
+            width: 400px;
+            height: 200px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #444;
+            display: none;
+            flex-direction: column;
+            color: #ddd;
+            font-family: monospace;
+            font-size: 12px;
+            overflow: hidden;
+            border-radius: 4px;
+        }
+        #console-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            white-space: pre-wrap;
+        }
+        .log-error { color: #ff5555; }
+        .log-print { color: #ddd; }
+    </style>
+</head>
+<body>
+
+    <div id="runner-container">
+        <iframe id="runner-frame"></iframe>
+    </div>
+
+    <div id="console-overlay">
+        <div style="padding: 5px; background: #333; border-bottom: 1px solid #444; display: flex; justify-content: space-between;">
+            <strong>Console</strong>
+            <span style="cursor: pointer;" onclick="document.getElementById('console-overlay').style.display='none'">✖</span>
+        </div>
+        <div id="console-content"></div>
+    </div>
+
+    <div id="controls">
+        <button id="edit-btn" title="Edit in IDE">✎ Edit</button>
+        <button id="console-btn" title="Toggle Console">_</button>
+    </div>
+
+    <script src="js/project_manager.js"></script>
+    <script>
+        const iframe = document.getElementById('runner-frame');
+        const consoleContent = document.getElementById('console-content');
+        const consoleOverlay = document.getElementById('console-overlay');
+        
+        // --- CONSOLE LOGIC ---
+        function logToConsole(msg, type) {
+            const el = document.createElement('span');
+            el.textContent = msg + '\n';
+            el.className = type === 'error' ? 'log-error' : 'log-print';
+            consoleContent.appendChild(el);
+            consoleContent.scrollTop = consoleContent.scrollHeight;
+            
+            // Auto-show on error
+            if (type === 'error') {
+                consoleOverlay.style.display = 'flex';
+            }
+        }
+
+        window.addEventListener('message', (event) => {
+             const data = event.data;
+             if (data && data.type === 'print') {
+                 logToConsole(data.message, 'print');
+             } else if (data && data.type === 'error') {
+                 logToConsole(data.message, 'error');
+             }
+        });
+
+        document.getElementById('console-btn').addEventListener('click', () => {
+             consoleOverlay.style.display = consoleOverlay.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        document.getElementById('edit-btn').addEventListener('click', () => {
+             window.location.href = 'ide.html' + window.location.search;
+        });
+
+        // --- RUNNER ---
+        async function initView() {
+            // 1. URL Loading
+            const urlLoaded = await loadProjectFromURL({
+                 onImport: (msg) => logToConsole(msg, 'print'),
+                 onError: (msg) => logToConsole(msg, 'error'),
+                 onLoaded: () => runSketch()
+            });
+            if (urlLoaded) return;
+            
+            // 2. LocalStorage (Default to viewing what was last edited?)
+            // Usually 'View' implies viewing a specific artifact.
+            // If no code param, let's load from LocalStorage just like IDE
+            const savedProject = localStorage.getItem(PROJECT_KEY);
+            if (savedProject) {
+                try {
+                    projectFiles = JSON.parse(savedProject);
+                    runSketch();
+                } catch(e) {}
+            }
+        }
+
+        function runSketch() {
+            // Find main file
+             // If sketch.py, use it. Else first file.
+             let code = projectFiles['sketch.py'];
+             if (!code && Object.keys(projectFiles).length > 0) {
+                 code = projectFiles[Object.keys(projectFiles)[0]];
+             }
+             
+             if(code) {
+                 iframe.contentWindow.name = code;
+                 iframe.src = 'runner.html?t=' + Date.now();
+             }
+        }
+
+        initView();
+
+    </script>
+</body>
+</html>

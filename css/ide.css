@@ -1,0 +1,343 @@
+main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+#editor-container {
+    width: 50%;
+    border-right: 1px solid #444;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#editor {
+    flex: 1;
+    position: relative;
+    font-size: 16px;
+}
+
+#preview-container {
+    width: 50%;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+#console-container {
+    height: 150px;
+    background: #1a1a1a;
+    border-top: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+}
+
+#console-header {
+    background: #252526;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+}
+
+#console-content {
+    flex: 1;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 14px;
+    overflow-y: auto;
+    color: #ddd;
+    white-space: pre-wrap;
+}
+
+.log-error {
+    color: #ff5555;
+}
+
+.log-print {
+    color: #ddd;
+}
+
+/* Resizers */
+#v-resizer {
+    width: 5px;
+    background: #444;
+    cursor: col-resize;
+    transition: background 0.2s;
+    z-index: 10;
+}
+
+#v-resizer:hover,
+#v-resizer.resizing {
+    background: #666;
+}
+
+#h-resizer {
+    height: 5px;
+    background: #444;
+    cursor: row-resize;
+    transition: background 0.2s;
+    z-index: 10;
+}
+
+#h-resizer:hover,
+#h-resizer.resizing {
+    background: #666;
+}
+
+/* File Panel */
+#file-panel {
+    width: 200px;
+    background: #252526;
+    color: #ccc;
+    border-right: 1px solid #333;
+    display: none;
+    /* Hidden by default */
+    flex-direction: column;
+}
+
+#file-list-header {
+    padding: 5px;
+    font-weight: bold;
+    background: #333;
+    display: flex;
+    align-items: center;
+}
+
+#file-list-header span {
+    margin-right: auto;
+}
+
+#add-file-btn,
+#upload-file-btn {
+    background: #444;
+    border: 1px solid #555;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 5px;
+    transition: background 0.2s;
+    padding: 0;
+}
+
+#add-file-btn:hover,
+#upload-file-btn:hover {
+    background: #666;
+}
+
+#file-list {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.file-item {
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-item:hover {
+    background: #333;
+}
+
+.file-item.active {
+    background: #37373d;
+    color: #fff;
+    border-left: 2px solid #007acc;
+}
+
+.file-delete {
+    visibility: hidden;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.file-item:hover .file-delete {
+    visibility: visible;
+}
+
+.file-delete:hover {
+    color: #f55;
+}
+
+/* Editor Top Bar */
+#editor-top-bar {
+    height: 30px;
+    background: #333;
+    border-bottom: 1px solid #444;
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+}
+
+#toggle-sidebar-btn {
+    background: #444;
+    border: 1px solid #555;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.2s;
+}
+
+#toggle-sidebar-btn:hover {
+    background: #666;
+    color: #fff;
+}
+
+#current-file-label {
+    color: #ddd;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+/* --- LIGHT THEME (Overrides) --- */
+body.light-theme #file-panel {
+    background: #f3f3f3;
+    color: #333;
+    border-right: 1px solid #ccc;
+}
+
+body.light-theme #file-list-header {
+    background: #e0e0e0;
+    color: #333;
+}
+
+body.light-theme #add-file-btn,
+body.light-theme #upload-file-btn {
+    background: #ccc;
+    border: 1px solid #bbb;
+    color: #333;
+}
+
+body.light-theme #add-file-btn:hover,
+body.light-theme #upload-file-btn:hover {
+    background: #bbb;
+}
+
+body.light-theme .file-item:hover {
+    background: #e0e0e0;
+}
+
+body.light-theme .file-item.active {
+    background: #fff;
+    color: #000;
+    border-left: 2px solid #007acc;
+}
+
+body.light-theme #editor-top-bar {
+    background: #e0e0e0;
+    border-bottom: 1px solid #ccc;
+}
+
+body.light-theme #toggle-sidebar-btn {
+    background: #ccc;
+    border: 1px solid #bbb;
+    color: #666;
+}
+
+body.light-theme #toggle-sidebar-btn:hover {
+    background: #bbb;
+    color: #000;
+}
+
+body.light-theme #current-file-label {
+    color: #333;
+}
+
+body.light-theme #console-container {
+    background: #f8f8f8;
+    border-top: 1px solid #ccc;
+}
+
+body.light-theme #console-header {
+    background: #e0e0e0;
+    color: #333;
+    border-bottom: 1px solid #ccc;
+}
+
+body.light-theme #console-content {
+    color: #333;
+}
+
+body.light-theme .log-print {
+    color: #333;
+}
+
+body.light-theme #editor-container {
+    border-right: 1px solid #ccc;
+}
+
+body.light-theme #v-resizer,
+body.light-theme #h-resizer {
+    background: #ccc;
+}
+
+body.light-theme #preview-container {
+    background: #e5e5e5;
+    border-left: 1px solid #ccc;
+}
+
+/* --- Ace Editor Scrollbars --- */
+.ace_scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.ace_scrollbar::-webkit-scrollbar-track {
+    background: #252526;
+}
+
+.ace_scrollbar::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 5px;
+    border: 2px solid #252526;
+}
+
+.ace_scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+/* Light Theme Ace Scrollbars */
+body.light-theme .ace_scrollbar::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+body.light-theme .ace_scrollbar::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border: 2px solid #f0f0f0;
+}
+
+body.light-theme .ace_scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}

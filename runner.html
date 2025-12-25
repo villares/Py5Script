@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Runner</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+        main { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script>
+        // Catch global JS errors (including PythonError from Pyodide)
+        window.addEventListener('error', function(event) {
+            if (event.error && event.error.message) {
+                 const msg = { type: 'error', message: event.error.message };
+                 window.parent.postMessage(msg, '*');
+            } else {
+                 // Fallback for string errors
+                 const msg = { type: 'error', message: event.message || String(event) };
+                 window.parent.postMessage(msg, '*');
+            }
+        });
+
+        // Catch unhandled promise rejections (often used by async Pyodide)
+        window.addEventListener('unhandledrejection', function(event) {
+            const msg = { type: 'error', message: "Unhandled Rejection: " + (event.reason ? event.reason.message || event.reason : "Unknown") };
+            window.parent.postMessage(msg, '*');
+        });
+    </script>
+    <script type="py">
+        import js
+        import ast
+        import textwrap
+        import sys
+        import json
+        import base64
+        from pyodide.ffi import create_proxy, to_js
+
+        # Global p5 instance
+        p5 = None
+
+        class StdoutCatcher:
+            def write(self, text):
+                msg = {"type": "print", "message": text}
+                js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
+            def flush(self):
+                pass
+        
+        class StderrCatcher:
+            def write(self, text):
+                msg = {"type": "error", "message": text}
+                js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
+            def flush(self):
+                pass
+
+        # Install Catchers globally immediately
+        sys.stdout = StdoutCatcher()
+        sys.stderr = StderrCatcher()
+
+        class P5Transformer(ast.NodeTransformer):
+            def __init__(self, p5_instance, user_defined):
+                self.p5_props = set(dir(p5_instance))
+                self.user_defined = user_defined
+                # Explicitly exclude 'print' so it stays as python's print
+                if 'print' in self.p5_props:
+                    self.p5_props.remove('print')
+                
+                # Explicitly add late-bound p5 properties
+                self.p5_props.add('drawingContext')
+
+            def visit_Call(self, node):
+                self.generic_visit(node)
+                if isinstance(node.func, ast.Name):
+                    name = node.func.id
+                    # Force skip 'print' to ensure it uses Python's print -> StdoutCatcher
+                    if name == 'print':
+                        return node
+                        
+                    if name in self.p5_props and name not in self.user_defined:
+                        node.func = ast.Attribute(
+                            value=ast.Name(id='p5', ctx=ast.Load()),
+                            attr=name,
+                            ctx=ast.Load()
+                        )
+                return node
+
+            def visit_Name(self, node):
+                if isinstance(node.ctx, ast.Load):
+                    if node.id in self.p5_props and node.id not in self.user_defined:
+                         return ast.Attribute(
+                            value=ast.Name(id='p5', ctx=ast.Load()),
+                            attr=node.id,
+                            ctx=ast.Load()
+                        )
+                return node
+
+        def entry_point():
+            # Standard file IO is sufficient in Pyodide
+            
+            # Ensure stdout is still set
+            sys.stdout = StdoutCatcher()
+            # print("DEBUG: StdoutCatcher installed in entry_point")
+
+            # --- Unified Project Hydration ---
+            # All files (code + assets) are in 'py5script_project'
+            hydrated_assets = {}
+            try:
+                project_json = js.localStorage.getItem('py5script_project')
+                if project_json:
+                    project_files = json.loads(project_json)
+                    for filename, content in project_files.items():
+                        try:
+                            # Check if Data URL (Binary/Asset)
+                            if content.startswith('data:'):
+                                # Decode Data URL
+                                # Format: data:[mime];base64,[data]
+                                if ',' in content:
+                                    _, headerless_data = content.split(',', 1)
+                                    binary_data = base64.b64decode(headerless_data)
+                                    
+                                    # Write to FS
+                                    with open(filename, 'wb') as f:
+                                        f.write(binary_data)
+                                    
+                                    # Add to hydration map for p5 interceptors
+                                    hydrated_assets[filename] = content
+                            else:
+                                # Regular Text File (Module)
+                                with open(filename, 'w') as f:
+                                    f.write(content)
+                        except Exception as inner_e:
+                            # print(f"Error hydrating {filename}: {inner_e}")
+                            pass
+            except Exception as e:
+                pass
+            # -----------------------
+
+            def sketch(p):
+                global p5
+                p5 = p  
+                
+                # Intercept load functions to use Data URLs if available
+                # This fixes p5.loadImage() failing to fetch local files
+                def create_asset_loader(original_loader, loader_name):
+                    def wrapper(path, *args, **kwargs):
+                        # If path is in our assets, swap it with the Data URL
+                        if isinstance(path, str) and path in hydrated_assets:
+                             # js.console.log(f"DEBUG: Intercepting {loader_name}('{path}') -> Serving Data URL")
+                             return original_loader(hydrated_assets[path], *args, **kwargs)
+                        return original_loader(path, *args, **kwargs)
+                    return wrapper
+
+                # List of load functions to wrap
+                load_funcs = ['loadImage', 'loadJSON', 'loadStrings', 'loadTable', 'loadXML', 'loadBytes', 'loadModel', 'loadFont', 'loadSound']
+                for name in load_funcs:
+                    if hasattr(p, name):
+                         original = getattr(p, name)
+                         setattr(p, name, create_proxy(create_asset_loader(original, name)))
+
+                # 1. Get Code ...
+                raw_source = js.window.name
+                source = textwrap.dedent(raw_source)
+                
+                if not source.strip(): return
+
+                try:
+                    tree = ast.parse(source)
+                except Exception as e:
+                    # Captura erro de sintaxe
+                    err_msg = f"{e.__class__.__name__}: {e}"
+                    line_num = getattr(e, 'lineno', 0)
+                    msg = {"type": "error", "message": err_msg, "line": line_num}
+                    js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
+                    return
+
+                # Collect user definitions
+                user_defined = set()
+                for node in tree.body:
+                    if isinstance(node, ast.FunctionDef):
+                        user_defined.add(node.name)
+                    elif isinstance(node, ast.Assign):
+                        for target in node.targets:
+                            if isinstance(target, ast.Name):
+                                user_defined.add(target.id)
+
+                # 2. Transform AST
+                transformer = P5Transformer(p5, user_defined)
+                new_tree = transformer.visit(tree)
+                ast.fix_missing_locations(new_tree)
+
+                # 3. Compile and Execute
+                try:
+                    code_obj = compile(new_tree, filename="<student_code>", mode="exec")
+                    exec(code_obj, globals())
+                except Exception as e:
+                    import traceback
+                    tb_list = traceback.extract_tb(e.__traceback__)
+                    line_num = 0
+                    for frame in tb_list:
+                        if frame.filename == "<student_code>":
+                            line_num = frame.lineno
+                    
+                    err_msg = f"{e.__class__.__name__}: {e}"
+                    msg = {"type": "error", "message": err_msg, "line": line_num}
+                    js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
+                    return
+                
+                # 4. Connect to p5
+                # List of p5.js event functions to map
+                p5_events = [
+                    'setup', 'draw', 'preload',
+                    'mousePressed', 'mouseReleased', 'mouseClicked', 'mouseMoved', 'mouseDragged', 'doubleClicked', 'mouseWheel',
+                    'keyPressed', 'keyReleased', 'keyTyped',
+                    'touchStarted', 'touchMoved', 'touchEnded',
+                    'deviceMoved', 'deviceTurned', 'deviceShaken',
+                    'windowResized'
+                ]
+                
+                import inspect
+                import traceback
+
+                def safe_wrapper(func):
+                    def wrapper(*args, **kwargs):
+                        try:
+                            return func(*args, **kwargs)
+                        except Exception:
+                            traceback.print_exc() 
+                            # We catch it, print it to our console, and suppress it from bubbling to JS console as an ugly Error
+                            # OR we re-raise? If we suppress, the sketch continues running (maybe bad state).
+                            # If we re-raise, it goes to JS console too. 
+                            # Let's just print. P5 might keep looping draw() though.
+                    return wrapper
+
+                def create_arg_stripper(func):
+                    return lambda *args: func()
+
+                for event in p5_events:
+                    if event in globals():
+                        py_func = globals()[event]
+                        
+                        # Handle argument mismatch (e.g. mousePressed(e) vs mousePressed())
+                        if callable(py_func):
+                             try:
+                                 sig = inspect.signature(py_func)
+                                 params = sig.parameters
+                                 has_varargs = any(p.kind == p.VAR_POSITIONAL for p in params.values())
+                                 
+                                 if not has_varargs and len(params) == 0:
+                                      # Wrap to discard arguments
+                                      py_func = create_arg_stripper(py_func)
+                             except Exception as e:
+                                 pass
+
+                        # Wrap in error handler
+                        secure_func = safe_wrapper(py_func)
+                        setattr(p, event, create_proxy(secure_func))
+
+            proxy = create_proxy(sketch)
+            js.window.p5.new(proxy)
+
+        entry_point()
+    </script>
+</body>
+</html>
