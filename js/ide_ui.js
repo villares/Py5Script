@@ -32,6 +32,9 @@ let autoSaveTimeout;
 editor.session.on('change', function(delta) {
     if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
+        // Prevent overwriting binary files with placeholder
+        if (projectFiles[currentFile] && isBinary(projectFiles[currentFile])) return;
+
         projectFiles[currentFile] = editor.getValue();
         saveProjectAndFiles();
     }, 2000); 
@@ -171,8 +174,17 @@ function runSketch() {
     consoleContent.innerHTML = "";
     const code = editor.getValue();
     iframe.contentWindow.name = code;
-    // Force reload
-    iframe.src = 'runner.html?t=' + Date.now();
+    
+    // Pass 'case' parameter if present
+    const params = new URLSearchParams(window.location.search);
+    const caseParam = params.get('case');
+    
+    let runnerUrl = 'runner.html?t=' + Date.now();
+    if (caseParam) {
+        runnerUrl += '&case=' + caseParam;
+    }
+    
+    iframe.src = runnerUrl;
 }
 
 function stopSketch() {
