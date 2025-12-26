@@ -144,9 +144,11 @@ with open("data.txt", "r") as f:
 ```
 
 ## Project Structure
-- **`sketch.py`**: The main entry point of your project. This file is always executed when you click "Run".
-- **Modules**: You can create additional `.py` files (e.g., `utils.py`) and import them in `sketch.py`. 
-    - *Note*: Clicking "Run" while viewing a module will save the module but execute `sketch.py`.
+- **`sketch.py`**: The main entry point. This file undergoes "p5 magic" (auto-prefixing, snake_case support).
+- **Modules**: You can create additional `.py` files (e.g., `utils.py`) and import them.
+    - **Usage**: Since modules are standard Python files, they do **not** get auto-prefixed. You must access p5 functions via the `p5` object (e.g., `p5.rect()`, not `rect()`).
+    - **Global p5**: The `p5` object is automatically available in all modules (no import needed).
+    - *Note*: Clicking "Run" works from any file but always executes `sketch.py`.
 
 ## License
 MIT
