@@ -69,9 +69,10 @@
                 self.case_mode = case_mode
                 self.scope_stack = []
 
-                # Explicitly exclude 'print'
-                if 'print' in self.p5_props:
-                    self.p5_props.remove('print')
+                # Explicitly exclude 'print' and other builtins/globals
+                exclusions = {'print', 'open', 'exit', 'quit', 'help', 'asset'}
+                self.p5_props -= exclusions
+                
                 self.p5_props.add('drawingContext')
 
                 # Build Mapping: snake_case -> camelCase
