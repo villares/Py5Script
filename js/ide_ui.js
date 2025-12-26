@@ -172,7 +172,13 @@ function logToConsole(msg, type) {
 
 function runSketch() {
     consoleContent.innerHTML = "";
-    const code = editor.getValue();
+    
+    // 1. Sync current editor content and Persist to LocalStorage
+    // This ensures all modules (including the one currently being edited) are available to the runner
+    saveProjectAndFiles();
+
+    // 2. Always execute sketch.py as the entry point
+    const code = projectFiles['sketch.py'] || "";
     iframe.contentWindow.name = code;
     
     // Pass 'case' parameter if present
