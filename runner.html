@@ -220,6 +220,20 @@
                 pass
             # -----------------------
 
+            # Asset Helper (Explicit URL resolution)
+            def asset(filename):
+                """
+                Returns the Data URL for a given asset filename if it exists.
+                Otherwise returns the filename itself (fallback).
+                Usage: p5.loadImage(asset('cat.png'))
+                """
+                if filename in hydrated_assets:
+                    return hydrated_assets[filename]
+                return filename
+            
+            # Expose to global scope for user scripts
+            globals()['asset'] = asset
+
             def sketch(p):
                 global p5
                 p5 = p  
