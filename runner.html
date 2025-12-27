@@ -16,19 +16,26 @@
     <script>
         // Catch global JS errors (including PythonError from Pyodide)
         window.addEventListener('error', function(event) {
+            let message = "";
             if (event.error && event.error.message) {
-                 const msg = { type: 'error', message: event.error.message };
-                 window.parent.postMessage(msg, '*');
+                 message = event.error.message;
             } else {
-                 // Fallback for string errors
-                 const msg = { type: 'error', message: event.message || String(event) };
-                 window.parent.postMessage(msg, '*');
+                 message = event.message || String(event);
             }
+            
+            // Ignore duplicate SyntaxErrors (handled by Python logic)
+            if (message && message.includes('SyntaxError:')) return;
+
+            const msg = { type: 'error', message: message };
+            window.parent.postMessage(msg, '*');
         });
 
         // Catch unhandled promise rejections (often used by async Pyodide)
         window.addEventListener('unhandledrejection', function(event) {
-            const msg = { type: 'error', message: "Unhandled Rejection: " + (event.reason ? event.reason.message || event.reason : "Unknown") };
+            const message = (event.reason ? event.reason.message || event.reason : "Unknown");
+            if (message && message.toString().includes('SyntaxError:')) return;
+
+            const msg = { type: 'error', message: "Unhandled Rejection: " + message };
             window.parent.postMessage(msg, '*');
         });
     </script>
