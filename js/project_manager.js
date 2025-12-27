@@ -262,7 +262,7 @@ async function loadProjectFromURL(callbacks = {}) {
                      const blob = await response.blob();
                      await loadProjectFromBlob(blob, filename, callbacks);
                      loaded = true;
-                     return true; 
+                     // removed early return to allow onLoaded callback below
                  }
             } else {
                  const response = await fetch(sketchUrl);
