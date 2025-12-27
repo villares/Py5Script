@@ -38,6 +38,7 @@ This IDE simplifies writing p5.js sketches in Python by abstracting away the glo
 ### Snake Case Support
 You can optionally write p5.js code using `snake_case` (as recommended by [PEP8](https://peps.python.org/pep-0008/)), and the IDE will automatically convert it internally to `camelCase` (p5.js style).
 - **Supported**: `create_canvas(400, 400)`, `background_color`, `mouse_x`.
+- **Callbacks**: You can define events like `def mouse_pressed():` or `def key_released():` instead of their camelCase counterparts.
 - **Mechanism**: The AST transformer checks for snake_case versions of p5 properties and maps them.
 - **Shadowing**: If you define `create_canvas` yourself, the auto-conversion remains disabled for that scope.
 

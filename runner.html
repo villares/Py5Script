@@ -62,6 +62,11 @@
         sys.stdout = StdoutCatcher()
         sys.stderr = StderrCatcher()
 
+        def camel_to_snake(name):
+            import re
+            s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+            return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
         class P5Transformer(ast.NodeTransformer):
             def __init__(self, user_defined, case_mode='both'):
                 # Use prototype to get properties since instance isn't created yet
@@ -82,15 +87,10 @@
                 self.snake_map = {}
                 if self.case_mode in ['snake', 'both']:
                     for prop in self.p5_props:
-                        snake = self.camel_to_snake(prop)
+                        snake = camel_to_snake(prop)
                         # Ensure we don't map back to an excluded builtin (e.g. OPEN -> open)
                         if snake != prop and snake not in exclusions:
                             self.snake_map[snake] = prop
-
-            def camel_to_snake(self, name):
-                import re
-                s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-                return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
             def resolve_p5_name(self, name):
                 # 0. Check Scope Stack (Local shadowing)
@@ -354,9 +354,19 @@
                     return lambda *args: func()
 
                 for event in p5_events:
+                    py_func = None
+                    
+                    # 1. Check for standard camelCase (mousePressed)
                     if event in globals():
                         py_func = globals()[event]
                         
+                    # 2. Check for snake_case (mouse_pressed)
+                    else:
+                        snake_event = camel_to_snake(event)
+                        if snake_event != event and snake_event in globals():
+                            py_func = globals()[snake_event]
+                    
+                    if py_func:
                         # Handle argument mismatch (e.g. mousePressed(e) vs mousePressed())
                         if callable(py_func):
                              try:
