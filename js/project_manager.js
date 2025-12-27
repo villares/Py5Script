@@ -199,6 +199,16 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
 
 // --- EXPORT ---
 function triggerExport() {
+     // Prompt for filename (allows renaming)
+     const name = prompt("Project Name:", projectName);
+     if (name === null) return; // Cancelled
+     
+     if (name && name.trim() !== "" && name !== projectName) {
+         projectName = name.trim();
+         isDirty = true; // Renamed -> Dirty
+         if (typeof updateProjectNameUI === 'function') updateProjectNameUI();
+     }
+
      const zip = new JSZip();
      
      // Sync editor

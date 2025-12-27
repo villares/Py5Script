@@ -31,10 +31,12 @@ editor.setShowPrintMargin(false);
 // Apply settings now that editor is ready
 applySettings();
 
+let isProgrammaticChange = false;
+
 // Auto-save logic (Debounced)
 let autoSaveTimeout;
 editor.session.on('change', function(delta) {
-    isDirty = true; // Mark dirty immediately on edit
+    if (!isProgrammaticChange) isDirty = true; // Only mark dirty on user input
     if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
         // Prevent overwriting binary files with placeholder
@@ -106,8 +108,11 @@ function switchToFile(filename, saveCurrent = true) {
         // Show placeholder or read-only
         editor.setValue(`<< Binary File: ${filename} >>\n<< Content hidden >>`);
         editor.setReadOnly(true);
+        editor.setReadOnly(true);
     } else {
+        isProgrammaticChange = true;
         editor.setValue(content || "");
+        isProgrammaticChange = false;
         editor.setReadOnly(false);
     }
     
@@ -300,7 +305,9 @@ async function initializeIDE() {
         onError: (msg) => logToConsole(msg, 'error'),
         onUpdateUI: () => {
             if (typeof editor !== 'undefined' && projectFiles[currentFile]) {
+                isProgrammaticChange = true;
                 editor.setValue(projectFiles[currentFile]);
+                isProgrammaticChange = false;
                 editor.clearSelection();
             }
             updateFileList();
@@ -352,7 +359,9 @@ async function initializeIDE() {
         if (oldSavedCode) {
              console.log("Migrating legacy autosave...");
              projectFiles['sketch.py'] = oldSavedCode;
+             isProgrammaticChange = true;
              editor.setValue(oldSavedCode);
+             isProgrammaticChange = false;
              updateFileList();
              saveProjectAndFiles(); // Migrate to new format
              localStorage.removeItem('py5script_autosave'); // Clean up
@@ -366,7 +375,9 @@ async function initializeIDE() {
          if (response.ok) {
              const text = await response.text();
              projectFiles['sketch.py'] = text;
+             isProgrammaticChange = true;
              editor.setValue(text);
+             isProgrammaticChange = false;
              updateFileList();
          } else {
              throw new Error("Default sketch not found");
@@ -374,7 +385,9 @@ async function initializeIDE() {
     } catch(e) {
          const defaultCode = "def setup():\n    p5.createCanvas(400, 400)\n\ndef draw():\n    p5.background(220)";
          projectFiles['sketch.py'] = defaultCode;
+         isProgrammaticChange = true;
          editor.setValue(defaultCode);
+         isProgrammaticChange = false;
          updateFileList();
     }
     editor.clearSelection();
@@ -492,7 +505,9 @@ fileInput.addEventListener('change', (e) => loadProjectFromBlob(e.target.files[0
             editor.setValue(`<< Binary File: ${currentFile} >>`);
             editor.setReadOnly(true);
         } else {
+            isProgrammaticChange = true;
             editor.setValue(content);
+            isProgrammaticChange = false;
             editor.setReadOnly(false);
         }
         updateFileList();
