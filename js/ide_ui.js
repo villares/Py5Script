@@ -331,13 +331,18 @@ async function initializeIDE() {
         }
     }
     
-    const oldSavedCode = localStorage.getItem('py5script_autosave'); // Legacy key check
-    if (oldSavedCode) {
-         projectFiles['sketch.py'] = oldSavedCode;
-         editor.setValue(oldSavedCode);
-         updateFileList();
-         saveProjectAndFiles(); // Migrate
-         return;
+    // 2.a Legacy Migration (Only if no new project found)
+    if (!savedProject) {
+        const oldSavedCode = localStorage.getItem('py5script_autosave'); 
+        if (oldSavedCode) {
+             console.log("Migrating legacy autosave...");
+             projectFiles['sketch.py'] = oldSavedCode;
+             editor.setValue(oldSavedCode);
+             updateFileList();
+             saveProjectAndFiles(); // Migrate to new format
+             localStorage.removeItem('py5script_autosave'); // Clean up
+             return;
+        }
     }
     
     // 3. Default
