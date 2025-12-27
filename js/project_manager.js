@@ -3,9 +3,14 @@
 const PROJECT_KEY = 'py5script_project';
 // Removed ASSET_STORAGE_KEY
 
+const PROJECT_NAME_KEY = 'py5script_project_name';
+
 let projectFiles = { 'sketch.py': '' };
+let projectName = "My Project";
 let currentFile = 'sketch.py';
 let isDirty = false;
+
+
 
 // --- FILE MANAGEMENT ---
 
@@ -77,6 +82,10 @@ function saveProjectAndFiles() {
     }
     // Save as JSON object
     localStorage.setItem(PROJECT_KEY, JSON.stringify(projectFiles));
+    
+    // Save Project Name
+    localStorage.setItem(PROJECT_NAME_KEY, projectName);
+    if (typeof updateProjectNameUI === 'function') updateProjectNameUI();
 }
 
 // Check Dirty before action
@@ -159,6 +168,11 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
                  err("Warning: No python file found in ZIP.");
              }
 
+             // Set Project Name from ZIP filename if imported
+             if (filenameHint.endsWith('.zip')) {
+                 projectName = filenameHint.replace(/\.zip$/i, '');
+             }
+             
              saveProjectAndFiles();
 
          } catch(e) {
@@ -209,7 +223,7 @@ function triggerExport() {
      zip.generateAsync({type:"blob"}).then(function(content) {
          const a = document.createElement("a");
          a.href = URL.createObjectURL(content);
-         a.download = "project.zip";
+         a.download = `${projectName}.zip`;
          a.click();
          URL.revokeObjectURL(a.href);
          

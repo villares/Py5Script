@@ -4,7 +4,10 @@ const fileListEl = document.getElementById('file-list');
 const addFileBtn = document.getElementById('add-file-btn');
 const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
 const filePanelEl = document.getElementById('file-panel');
+
 const currentFileLabel = document.getElementById('current-file-label');
+const projectNameLabel = document.getElementById('project-name');
+const renameBtn = document.getElementById('rename-btn');
 
 const iframe = document.getElementById('runner-frame');
 const consoleContent = document.getElementById('console-content');
@@ -322,8 +325,15 @@ async function initializeIDE() {
                 currentFile = 'sketch.py';
             }
             
+
             updateFileList(); // Refresh UI list
             switchToFile(currentFile, false); // Load content
+            
+            // Load Project Name
+            const savedName = localStorage.getItem(PROJECT_NAME_KEY);
+            if (savedName) projectName = savedName;
+            updateProjectNameUI();
+            
             return; // STOP here if loaded successfully
             
         } catch (e) {
@@ -530,7 +540,22 @@ closeSettingsBtn.addEventListener('click', closeSettings);
 settingTheme.addEventListener('change', (e) => updateSetting('theme', e.target.value));
 settingFontSize.addEventListener('change', (e) => updateSetting('fontSize', e.target.value));
 settingSoftTabs.addEventListener('change', (e) => updateSetting('softTabs', e.target.checked));
+
 settingInvisibles.addEventListener('change', (e) => updateSetting('showInvisibles', e.target.checked));
+
+// --- PROJECT NAME LOGIC ---
+function updateProjectNameUI() {
+    if (projectNameLabel) projectNameLabel.textContent = projectName;
+}
+window.updateProjectNameUI = updateProjectNameUI; // Expose to project_manager.js
+
+renameBtn.addEventListener('click', () => {
+    const newName = prompt("Rename Project:", projectName);
+    if (newName && newName.trim() !== "") {
+        projectName = newName.trim();
+        saveProjectAndFiles(); // Persist changes
+    }
+});
 
 // Start
 initializeIDE();
