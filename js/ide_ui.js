@@ -480,14 +480,7 @@ fileInput.addEventListener('change', (e) => loadProjectFromBlob(e.target.files[0
 // Removed assetsBtn listener
 // Removed setupExportHandlers call
 
-window.addEventListener('message', (event) => {
-     const data = event.data;
-     if (data && data.type === 'print') {
-         logToConsole(data.message, 'print');
-     } else if (data && data.type === 'error') {
-         logToConsole(data.message, 'error');
-     }
-});
+
 
 // Setup Export - REMOVED (using triggerExport directly)
 // setupExportHandlers(...)
