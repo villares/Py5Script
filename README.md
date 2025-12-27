@@ -146,9 +146,9 @@ with open("data.txt", "r") as f:
 
 ## Project Structure
 - **`sketch.py`**: The main entry point. This file undergoes "p5 magic" (auto-prefixing, snake_case support).
-- **Modules**: You can create additional `.py` files (e.g., `utils.py`) and import them.
-    - **Usage**: Since modules are standard Python files, they do **not** get auto-prefixed. You must access p5 functions via the `p5` object (e.g., `p5.rect()`, not `rect()`).
-    - **Global p5**: The `p5` object is automatically available in all modules (no import needed).
+- **Modules**: You can create additional `.py` files import them.
+    - **Usage**: Modules now behave just like `sketch.py`. You can use p5 functions directly (e.g., `rect()`) and use snake_case (e.g., `mouse_pressed`).
+    - **Global p5**: The `p5` object is available globally if you prefer explicit access (`p5.rect()`).
     - *Note*: Clicking "Run" works from any file but always executes `sketch.py`.
 
 ## License

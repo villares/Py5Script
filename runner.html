@@ -187,10 +187,65 @@
 
         def entry_point():
             # Standard file IO is sufficient in Pyodide
+            import os
+            import importlib.abc
+            import importlib.util
             
             # Ensure stdout is still set
             sys.stdout = StdoutCatcher()
-            # print("DEBUG: StdoutCatcher installed in entry_point")
+            
+            # Parse URL params for case-mode (Global setting)
+            params = js.URLSearchParams.new(js.window.location.search)
+            case_mode = params.get('case')
+            if not case_mode:
+                case_mode = 'both'
+
+            # --- Custom Import Hook for Auto-Prefixing in Modules ---
+            class P5Importer(importlib.abc.MetaPathFinder, importlib.abc.Loader):
+                def __init__(self, mode):
+                    self.mode = mode
+
+                def find_spec(self, fullname, path, target=None):
+                    filename = fullname + ".py"
+                    if os.path.exists(filename):
+                        return importlib.util.spec_from_file_location(fullname, filename, loader=self)
+                    return None
+
+                def create_module(self, spec):
+                    return None 
+
+                def exec_module(self, module):
+                    with open(module.__file__, 'r') as f:
+                        source = f.read()
+                    
+                    try:
+                        tree = ast.parse(source)
+                    except Exception as e:
+                        print(f"SyntaxError in {module.__name__}: {e}")
+                        raise e
+
+                    user_defined = set()
+                    for node in tree.body:
+                        if isinstance(node, ast.FunctionDef):
+                            user_defined.add(node.name)
+                        elif isinstance(node, ast.Assign):
+                            for target in node.targets:
+                                if isinstance(target, ast.Name):
+                                    user_defined.add(target.id)
+                                elif isinstance(target, ast.Tuple) or isinstance(target, ast.List):
+                                    for elt in target.elts:
+                                        if isinstance(elt, ast.Name):
+                                            user_defined.add(elt.id)
+                    
+                    transformer = P5Transformer(user_defined, self.mode)
+                    new_tree = transformer.visit(tree)
+                    ast.fix_missing_locations(new_tree)
+                    
+                    code_obj = compile(new_tree, filename=module.__file__, mode="exec")
+                    exec(code_obj, module.__dict__)
+
+            # Register Hook
+            sys.meta_path.insert(0, P5Importer(case_mode))
 
             # --- Unified Project Hydration ---
             # All files (code + assets) are in 'py5script_project'
@@ -274,11 +329,7 @@
                 raw_source = js.window.name
                 source = textwrap.dedent(raw_source)
                 
-                # Parse URL params for case-mode
-                params = js.URLSearchParams.new(js.window.location.search)
-                case_mode = params.get('case')
-                if not case_mode:
-                    case_mode = 'both'
+
                 
                 if not source.strip(): return
 
