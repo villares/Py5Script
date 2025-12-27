@@ -221,7 +221,11 @@
                     try:
                         tree = ast.parse(source)
                     except Exception as e:
-                        print(f"SyntaxError in {module.__name__}: {e}")
+                        # Report SyntaxError in module
+                        err_msg = f"{e.__class__.__name__}: {e}"
+                        line_num = getattr(e, 'lineno', 0)
+                        msg = {"type": "error", "message": err_msg, "filename": module.__file__, "line": line_num}
+                        js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
                         raise e
 
                     user_defined = set()
@@ -237,12 +241,31 @@
                                         if isinstance(elt, ast.Name):
                                             user_defined.add(elt.id)
                     
-                    transformer = P5Transformer(user_defined, self.mode)
-                    new_tree = transformer.visit(tree)
-                    ast.fix_missing_locations(new_tree)
-                    
-                    code_obj = compile(new_tree, filename=module.__file__, mode="exec")
-                    exec(code_obj, module.__dict__)
+                    try:
+                        transformer = P5Transformer(user_defined, self.mode)
+                        new_tree = transformer.visit(tree)
+                        ast.fix_missing_locations(new_tree)
+                        
+                        code_obj = compile(new_tree, filename=module.__file__, mode="exec")
+                        exec(code_obj, module.__dict__)
+                    except Exception as e:
+                         # Runtime error in module execution
+                        import traceback
+                        # We just propagate it, but the main loop's handler might catch "ImportError",
+                        # so we want to be sure to report the inner detail if possible.
+                        # Actually, posting here is safe.
+                        tb_list = traceback.extract_tb(e.__traceback__)
+                        line_num = 0
+                        err_filename = module.__file__
+                        if tb_list:
+                             last_frame = tb_list[-1]
+                             line_num = last_frame.lineno
+                             err_filename = last_frame.filename
+                        
+                        err_msg = f"{e.__class__.__name__}: {e}"
+                        msg = {"type": "error", "message": err_msg, "filename": err_filename, "line": line_num}
+                        js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
+                        raise e
 
             # Register Hook
             sys.meta_path.insert(0, P5Importer(case_mode))
@@ -339,7 +362,7 @@
                     # Captura erro de sintaxe
                     err_msg = f"{e.__class__.__name__}: {e}"
                     line_num = getattr(e, 'lineno', 0)
-                    msg = {"type": "error", "message": err_msg, "line": line_num}
+                    msg = {"type": "error", "message": err_msg, "filename": "sketch.py", "line": line_num}
                     js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
                     return
 
@@ -352,6 +375,11 @@
                         for target in node.targets:
                             if isinstance(target, ast.Name):
                                 user_defined.add(target.id)
+                            # Tuple unpacking? (a, b) = ...
+                            elif isinstance(target, ast.Tuple) or isinstance(target, ast.List):
+                                for elt in target.elts:
+                                    if isinstance(elt, ast.Name):
+                                        user_defined.add(elt.id)
 
                 # 2. Transform AST
                 transformer = P5Transformer(user_defined, case_mode)
@@ -360,18 +388,28 @@
 
                 # 3. Compile and Execute
                 try:
-                    code_obj = compile(new_tree, filename="<student_code>", mode="exec")
+                    code_obj = compile(new_tree, filename="sketch.py", mode="exec")
                     exec(code_obj, globals())
                 except Exception as e:
                     import traceback
-                    tb_list = traceback.extract_tb(e.__traceback__)
-                    line_num = 0
-                    for frame in tb_list:
-                        if frame.filename == "<student_code>":
-                            line_num = frame.lineno
+                    import os
                     
                     err_msg = f"{e.__class__.__name__}: {e}"
-                    msg = {"type": "error", "message": err_msg, "line": line_num}
+                    line_num = 0
+                    err_filename = "sketch.py"
+
+                    if isinstance(e, SyntaxError):
+                         line_num = e.lineno
+                         err_filename = e.filename
+                    else:
+                        tb_list = traceback.extract_tb(e.__traceback__)
+                        # Find the last frame that is in a user file or sketch.py
+                        for frame in tb_list:
+                            if frame.filename == "sketch.py" or os.path.exists(frame.filename):
+                                err_filename = frame.filename
+                                line_num = frame.lineno
+                    
+                    msg = {"type": "error", "message": err_msg, "filename": err_filename, "line": line_num}
                     js.window.parent.postMessage(to_js(msg, dict_converter=js.Object.fromEntries), "*")
                     return
                 
