@@ -337,13 +337,13 @@ async function initializeIDE() {
             }
             
 
-            updateFileList(); // Refresh UI list
-            switchToFile(currentFile, false); // Load content
-            
-            // Load Project Name
+            // Load Project Name first to prevent overwrite in switchToFile -> saveProjectAndFiles
             const savedName = localStorage.getItem(PROJECT_NAME_KEY);
             if (savedName) projectName = savedName;
             updateProjectNameUI();
+
+            updateFileList(); // Refresh UI list
+            switchToFile(currentFile, false); // Load content
             
             return; // STOP here if loaded successfully
             
