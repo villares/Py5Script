@@ -180,16 +180,24 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
              err(`Error reading ZIP: ${e}`);
          }
      } else {
-         // Text Import (Single File) - Treat as sketch.py replacement?
-         // User said: "load button will necessarily erase all files".
-         // So leading a single .py file wipes the project and sets it as sketch.py?
-         // Yes.
+         // Text Import (Single File) - Treat as sketch.py replacement
          const text = await blob.text();
          projectFiles = {}; 
          projectFiles['sketch.py'] = text;
          currentFile = 'sketch.py';
-         isDirty = true; // Technically 'loaded from file' implies clean, but it's not a full project recovery, it's a new start. 
-         // Actually, if I load a file, I haven't "saved" this project state to a zip yet. So Dirty.
+         
+         // Extract project name from filenameHint (e.g. "mandelbrot.py" -> "mandelbrot")
+         // Only if filenameHint is valid and not generic 'sketch.py' or 'Unknown' if we want to preserve that behavior.
+         // But user requested "something.py" -> "something".
+         if (filenameHint && filenameHint !== 'sketch.py') {
+             // remove extension
+             const name = filenameHint.replace(/\.[^/.]+$/, "");
+             if (name.trim() !== "") {
+                 projectName = name;
+             }
+         }
+
+         isDirty = true; // New content loaded, technically "unsaved" as project.zip
          
          if (callbacks.onUpdateUI) callbacks.onUpdateUI();
          
