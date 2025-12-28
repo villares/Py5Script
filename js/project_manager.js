@@ -197,7 +197,7 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
              }
          }
 
-         isDirty = true; // New content loaded, technically "unsaved" as project.zip
+         isDirty = false; // Just loaded from source -> clean
          
          if (callbacks.onUpdateUI) callbacks.onUpdateUI();
          
