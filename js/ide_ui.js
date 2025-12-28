@@ -108,12 +108,24 @@ function switchToFile(filename, saveCurrent = true) {
         // Show placeholder or read-only
         editor.setValue(`<< Binary File: ${filename} >>\n<< Content hidden >>`);
         editor.setReadOnly(true);
-        editor.setReadOnly(true);
+        editor.session.setMode("ace/mode/text");
     } else {
         isProgrammaticChange = true;
         editor.setValue(content || "");
         isProgrammaticChange = false;
         editor.setReadOnly(false);
+
+        // Determine Mode
+        const ext = filename.split('.').pop().toLowerCase();
+        let mode = "ace/mode/text";
+        if (ext === 'py') mode = "ace/mode/python";
+        else if (ext === 'js') mode = "ace/mode/javascript";
+        else if (ext === 'json') mode = "ace/mode/json";
+        else if (ext === 'html' || ext === 'xml') mode = "ace/mode/html";
+        else if (ext === 'css') mode = "ace/mode/css";
+        else if (ext === 'vert' || ext === 'frag' || ext === 'glsl') mode = "ace/mode/glsl";
+        
+        editor.session.setMode(mode);
     }
     
     editor.clearSelection();
@@ -124,10 +136,15 @@ function switchToFile(filename, saveCurrent = true) {
 }
 
 function addFile() {
-    const name = prompt("Enter new filename (ending in .py):", "new_module.py");
+    const name = prompt("Enter new filename (e.g. module.py, shader.vert):", "new_module.py");
     if (!name) return;
-    if (!name.endsWith('.py')) {
-        alert("Filename must end with .py");
+    
+    // Allowed extensions
+    const allowed = ['.py', '.vert', '.frag', '.glsl'];
+    const hasValidExt = allowed.some(ext => name.endsWith(ext));
+
+    if (!hasValidExt) {
+        alert("Filename must end with .py, .vert, .frag, or .glsl");
         return;
     }
     if (projectFiles[name]) {

@@ -46,7 +46,7 @@ function handleFileUpload(event) {
     };
 
     // Re-do Reader Logic based on type
-    const textExts = ['.py', '.txt', '.csv', '.json', '.md', '.xml', '.yaml', '.gsdict'];
+    const textExts = ['.py', '.txt', '.csv', '.json', '.md', '.xml', '.yaml', '.gsdict', '.vert', '.frag', '.glsl'];
     const isText = textExts.some(ext => file.name.toLowerCase().endsWith(ext));
 
     if (isText) {
@@ -117,9 +117,9 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
                  if (zip.files[filename].dir) continue;
                  
                  const file = zip.file(filename);
-                 // Heuristic: .py, .txt, .csv, .json, .md, .xml, .yaml, .gsdict -> String
+                 // Heuristic: .py, .txt, .csv, .json, .md, .xml, .yaml, .gsdict, .vert, .frag, .glsl -> String
                  // Others -> Base64
-                 const textExts = ['.py', '.txt', '.csv', '.json', '.md', '.xml', '.yaml', '.gsdict'];
+                 const textExts = ['.py', '.txt', '.csv', '.json', '.md', '.xml', '.yaml', '.gsdict', '.vert', '.frag', '.glsl'];
                  const isText = textExts.some(ext => filename.toLowerCase().endsWith(ext));
 
                  if (isText) {
