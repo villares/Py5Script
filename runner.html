@@ -453,10 +453,9 @@
                             return func(*args, **kwargs)
                         except Exception:
                             traceback.print_exc() 
-                            # We catch it, print it to our console, and suppress it from bubbling to JS console as an ugly Error
-                            # OR we re-raise? If we suppress, the sketch continues running (maybe bad state).
-                            # If we re-raise, it goes to JS console too. 
-                            # Let's just print. P5 might keep looping draw() though.
+                            # Stop the sketch loop on error
+                            if P5:
+                                P5.noLoop()
                     return wrapper
 
                 def create_arg_stripper(func):
