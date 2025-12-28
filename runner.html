@@ -5,7 +5,8 @@
     <title>Runner</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; }
         main { display: flex; justify-content: center; align-items: center; height: 100vh; }
@@ -381,16 +382,18 @@
                 # Intercept load functions to use Data URLs if available
                 # This fixes p5.loadImage() failing to fetch local files
                 def create_asset_loader(original_loader, loader_name):
-                    def wrapper(path, *args, **kwargs):
-                        # If path is in our assets, swap it with the Data URL
-                        if isinstance(path, str) and path in hydrated_assets:
-                             # js.console.log(f"DEBUG: Intercepting {loader_name}('{path}') -> Serving Data URL")
-                             return original_loader(hydrated_assets[path], *args, **kwargs)
-                        return original_loader(path, *args, **kwargs)
+                    def wrapper(*args, **kwargs):
+                        new_args = []
+                        for arg in args:
+                            if isinstance(arg, str) and arg in hydrated_assets:
+                                new_args.append(hydrated_assets[arg])
+                            else:
+                                new_args.append(arg)
+                        return original_loader(*new_args, **kwargs)
                     return wrapper
 
                 # List of load functions to wrap
-                load_funcs = ['loadImage', 'loadJSON', 'loadStrings', 'loadTable', 'loadXML', 'loadBytes', 'loadModel', 'loadFont', 'loadSound']
+                load_funcs = ['loadImage', 'loadJSON', 'loadStrings', 'loadTable', 'loadXML', 'loadBytes', 'loadModel', 'loadFont', 'loadSound', 'loadShader']
                 for name in load_funcs:
                     if hasattr(p, name):
                          original = getattr(p, name)
