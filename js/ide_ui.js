@@ -55,13 +55,16 @@ editor.session.on('change', function(delta) {
 });
 
 // --- FILE PANEL ---
+// --- FILE PANEL ---
 toggleSidebarBtn.addEventListener('click', () => {
      if (filePanelEl.style.display === 'flex') {
          filePanelEl.style.display = 'none';
-         toggleSidebarBtn.textContent = '>';
+         // Closed -> Show Right Chevron
+         toggleSidebarBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
      } else {
          filePanelEl.style.display = 'flex';
-         toggleSidebarBtn.textContent = '<';
+         // Open -> Show Left Chevron
+         toggleSidebarBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
      }
 });
 
@@ -90,7 +93,7 @@ function updateFileList() {
         if (filename !== 'sketch.py') {
             const delBtn = document.createElement('span');
             delBtn.className = 'file-delete';
-            delBtn.textContent = '✖';
+            delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
             delBtn.onclick = (e) => {
                 e.stopPropagation();
                 deleteFile(filename);
