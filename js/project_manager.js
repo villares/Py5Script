@@ -212,15 +212,18 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
      const log = callbacks.onImport || console.log;
      const err = callbacks.onError || console.error;
 
-     if (!checkDirty()) return;
+     // We don't check dirty on upload anymore because we are NOT overwriting the current project.
+     // We are creating a NEW project.
+     
+     if (!blob) return;
+
+     let newProjectFiles = {};
+     let newProjectName = "Imported Project";
 
      if (filenameHint.endsWith('.zip')) {
          // ZIP Import
          try {
              const zip = await JSZip.loadAsync(blob);
-             
-             // Wipe current project
-             const newProjectFiles = {};
              let foundPy = false;
              
              for (const filename in zip.files) {
@@ -228,7 +231,6 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
                  
                  const file = zip.file(filename);
                  // Heuristic: .py, .txt, .csv, .json, .md, .xml, .yaml, .gsdict, .vert, .frag, .glsl -> String
-                 // Others -> Base64
                  const textExts = ['.py', '.txt', '.csv', '.json', '.md', '.xml', '.yaml', '.gsdict', '.vert', '.frag', '.glsl'];
                  const isText = textExts.some(ext => filename.toLowerCase().endsWith(ext));
 
@@ -236,7 +238,6 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
                      newProjectFiles[filename] = await file.async("string");
                  } else {
                      const b64 = await file.async("base64");
-                     // We need MIME type
                      let mime = 'application/octet-stream';
                      if (filename.endsWith('.png')) mime = 'image/png';
                      else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) mime = 'image/jpeg';
@@ -249,125 +250,180 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
              }
 
              if (foundPy) {
-                 projectFiles = newProjectFiles;
-                 
                  // ENFORCE sketch.py
-                 if (!projectFiles['sketch.py']) {
-                     const keys = Object.keys(projectFiles);
-                     if (projectFiles['main.py']) {
-                         projectFiles['sketch.py'] = projectFiles['main.py'];
-                         delete projectFiles['main.py'];
+                 if (!newProjectFiles['sketch.py']) {
+                     const keys = Object.keys(newProjectFiles);
+                     if (newProjectFiles['main.py']) {
+                         newProjectFiles['sketch.py'] = newProjectFiles['main.py'];
+                         delete newProjectFiles['main.py'];
                      } else {
                          // Find first py
                          const pyFile = keys.find(k => k.endsWith('.py'));
                          if (pyFile) {
-                             projectFiles['sketch.py'] = projectFiles[pyFile];
-                             delete projectFiles[pyFile];
+                             newProjectFiles['sketch.py'] = newProjectFiles[pyFile];
+                             delete newProjectFiles[pyFile];
                          }
                      }
                  }
+                 if (!newProjectFiles['sketch.py']) newProjectFiles['sketch.py'] = "";
 
-                 // If still no sketch.py (rare), create one
-                 if (!projectFiles['sketch.py']) projectFiles['sketch.py'] = "";
-
-                 currentFile = 'sketch.py';
-                 isDirty = false; // Fresh load from zip -> clean
-                 
-                 if (callbacks.onUpdateUI) callbacks.onUpdateUI();
-                 log(`Imported project with ${Object.keys(projectFiles).length} files.`);
+                 // Name from ZIP
+                 newProjectName = filenameHint.replace(/\.zip$/i, '');
              } else {
                  err("Warning: No python file found in ZIP.");
+                 // Still proceed? Yes, maybe just assets.
+                 if (!newProjectFiles['sketch.py']) newProjectFiles['sketch.py'] = "";
+                 newProjectName = filenameHint.replace(/\.zip$/i, '');
              }
-
-             // Set Project Name from ZIP filename if imported
-             if (filenameHint.endsWith('.zip')) {
-                 projectName = filenameHint.replace(/\.zip$/i, '');
-             }
-             
-             saveProjectAndFiles();
 
          } catch(e) {
              err(`Error reading ZIP: ${e}`);
+             return;
          }
      } else {
-         // Text Import (Single File) - Treat as sketch.py replacement
+         // Single File Import
          const text = await blob.text();
-         projectFiles = {}; 
-         projectFiles['sketch.py'] = text;
-         currentFile = 'sketch.py';
+         newProjectFiles = {}; 
+         newProjectFiles['sketch.py'] = text;
          
-         // Extract project name from filenameHint (e.g. "mandelbrot.py" -> "mandelbrot")
-         // Only if filenameHint is valid and not generic 'sketch.py' or 'Unknown' if we want to preserve that behavior.
-         // But user requested "something.py" -> "something".
+         // Name from filename
          if (filenameHint && filenameHint !== 'sketch.py') {
-             // remove extension
              const name = filenameHint.replace(/\.[^/.]+$/, "");
              if (name.trim() !== "") {
-                 projectName = name;
+                 newProjectName = name;
              }
+         } else {
+            newProjectName = "My Sketch";
          }
-
-         isDirty = false; // Just loaded from source -> clean
-         
-         if (callbacks.onUpdateUI) callbacks.onUpdateUI();
-         
-         saveProjectAndFiles();
      }
+
+     // --- SAVE AS NEW PROJECT ---
+     const slugify = (text) => text.toString().toLowerCase()
+        .replace(/\s+/g, '-')           
+        .replace(/[^\w\-]+/g, '')       
+        .replace(/\-\-+/g, '-')         
+        .replace(/^-+/, '')             
+        .replace(/-+$/, '');
+
+     let newId = slugify(newProjectName);
+     if (!newId) newId = "imported-project-" + Date.now();
+
+     // Handle Collision (Auto-Increment)
+     const registry = getProjectRegistry();
+     let counter = 1;
+     let originalId = newId;
+     while (registry[newId]) {
+         newId = `${originalId}-${counter}`;
+         counter++;
+     }
+     if (newId !== originalId) {
+         newProjectName = `${newProjectName} (${counter - 1})`;
+     }
+
+     console.log(`Importing as: ${newProjectName} (ID: ${newId})`);
+
+     // Save to Storage
+     const keyFiles = `${PROJECT_KEY_PREFIX}${newId}_files`;
+     const keyName = `${PROJECT_KEY_PREFIX}${newId}_name`;
+     const keyDirty = `${PROJECT_KEY_PREFIX}${newId}_dirty`;
+
+     localStorage.setItem(keyFiles, JSON.stringify(newProjectFiles));
+     localStorage.setItem(keyName, newProjectName);
+     localStorage.setItem(keyDirty, 'false'); // Clean on import
+
+     // Update Registry
+     updateRegistryEntry(newId, newProjectName);
+
+     // Callback before redirect?
+     if (callbacks.onImport) callbacks.onImport(`Project imported as ${newProjectName}. Redirecting...`);
+
+     // Redirect
+     window.location.href = `ide.html?id=${newId}`;
 }
 
 // --- EXPORT ---
+// --- EXPORT ---
 function triggerExport() {
-     // Sync editor content first
-     if (typeof editor !== 'undefined' && editor.getValue && !isBinary(projectFiles[currentFile])) {
-        projectFiles[currentFile] = editor.getValue();
-     }
-
-     const fileKeys = Object.keys(projectFiles);
-
-     // Single File Export (.py)
-     if (fileKeys.length === 1 && fileKeys[0] === 'sketch.py') {
-         const content = projectFiles['sketch.py'];
-         const blob = new Blob([content], {type: "text/plain;charset=utf-8"});
-         
-         const a = document.createElement("a");
-         a.href = URL.createObjectURL(blob);
-         a.download = `${projectName}.py`;
-         a.click();
-         URL.revokeObjectURL(a.href);
-         
-         isDirty = false;
-         saveProjectAndFiles();
-         return;
-     }
-
-     // ZIP Export (Multiple files or non-sketch files)
-     const zip = new JSZip();
-
-     // Add All Project Files
-     for (const filename in projectFiles) {
-         const content = projectFiles[filename];
-         if (isBinary(content)) {
-             // data:mime;base64,...
-             const parts = content.split(',');
-             if (parts.length === 2) {
-                 zip.file(filename, parts[1], {base64: true});
-             }
-         } else {
-             zip.file(filename, content);
+     console.log("Export triggered...");
+     try {
+         // Sync editor content first
+         if (typeof editor !== 'undefined' && editor.getValue && !isBinary(projectFiles[currentFile])) {
+            projectFiles[currentFile] = editor.getValue();
          }
-     }
-     
-     // Generate and download
-     zip.generateAsync({type:"blob"}).then(function(content) {
-         const a = document.createElement("a");
-         a.href = URL.createObjectURL(content);
-         a.download = `${projectName}.zip`;
-         a.click();
-         URL.revokeObjectURL(a.href);
+
+         const fileKeys = Object.keys(projectFiles);
+         if (fileKeys.length === 0) {
+             alert("Project is empty!");
+             return;
+         }
+
+         // Update Last Exported Timestamp
+         updateRegistryEntry(projectId, projectName, Date.now());
+
+         // Single File Export (.py)
+         if (fileKeys.length === 1 && fileKeys[0] === 'sketch.py') {
+             console.log("Exporting single .py file");
+             const content = projectFiles['sketch.py'];
+             const blob = new Blob([content], {type: "text/plain;charset=utf-8"});
+             
+             const a = document.createElement("a");
+             a.href = URL.createObjectURL(blob);
+             a.download = `${projectName}.py`;
+             document.body.appendChild(a); // Append to body to ensure click works in some browsers
+             a.click();
+             document.body.removeChild(a);
+             URL.revokeObjectURL(a.href);
+             
+             isDirty = false;
+             saveProjectAndFiles();
+             return;
+         }
+
+         // ZIP Export (Multiple files or non-sketch files)
+         console.log("Exporting ZIP...");
+         if (typeof JSZip === 'undefined') {
+             alert("JSZip library not loaded!");
+             return;
+         }
+         const zip = new JSZip();
+
+         // Add All Project Files
+         for (const filename in projectFiles) {
+             const content = projectFiles[filename];
+             if (isBinary(content)) {
+                 // data:mime;base64,...
+                 const parts = content.split(',');
+                 if (parts.length === 2) {
+                     zip.file(filename, parts[1], {base64: true});
+                 } else {
+                     zip.file(filename, content);
+                 }
+             } else {
+                 zip.file(filename, content);
+             }
+         }
          
-         isDirty = false; // Saved
-         saveProjectAndFiles(); // Persist clean state
-     });
+         // Generate and download
+         zip.generateAsync({type:"blob"}).then(function(content) {
+             const a = document.createElement("a");
+             a.href = URL.createObjectURL(content);
+             a.download = `${projectName}.zip`;
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+             URL.revokeObjectURL(a.href);
+             
+             isDirty = false; // Saved
+             saveProjectAndFiles(); // Persist clean state
+             console.log("Export complete.");
+         }).catch(err => {
+             console.error("ZIP Generation Error:", err);
+             alert("Failed to generate ZIP: " + err.message);
+         });
+     } catch(e) {
+         console.error("Export Error:", e);
+         alert("Export failed: " + e.message);
+     }
 }
 // --- URL LOADING ---
 async function loadProjectFromURL(callbacks = {}) {
