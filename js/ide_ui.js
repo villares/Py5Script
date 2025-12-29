@@ -43,7 +43,9 @@ let isProgrammaticChange = false;
 // Auto-save logic (Debounced)
 let autoSaveTimeout;
 editor.session.on('change', function(delta) {
-    if (!isProgrammaticChange) isDirty = true; // Only mark dirty on user input
+    if (isProgrammaticChange) return;
+
+    isDirty = true; // Mark dirty on user input
     if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
         // Prevent overwriting binary files with placeholder
