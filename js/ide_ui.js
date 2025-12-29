@@ -16,7 +16,9 @@ const clearConsoleBtn = document.getElementById('clear-console');
 const runBtn = document.getElementById('run-btn');
 const stopBtn = document.getElementById('stop-btn');
 const newBtn = document.getElementById('new-btn');
-const loadBtn = document.getElementById('load-btn');
+const openBtn = document.getElementById('open-btn');
+const loadBtn = document.getElementById('load-btn'); // Now "Upload"
+const saveBtn = document.getElementById('save-btn'); // Now "Download"
 const shareBtn = document.getElementById('share-btn');
 // Removed assetsBtn
 const fileInput = document.getElementById('file-input');
@@ -313,6 +315,10 @@ document.addEventListener('mouseup', () => {
 
 // --- INITIALIZATION ---
 async function initializeIDE() {
+    // 0. Initialize Project ID / Routing / Migration
+    const shouldContinue = await initProjectID();
+    if (!shouldContinue) return; // Redirecting...
+
     // Init URL/Storage loading
     const params = new URLSearchParams(window.location.search);
     
@@ -328,65 +334,30 @@ async function initializeIDE() {
                 editor.clearSelection();
             }
             updateFileList();
+            updateProjectNameUI();
         },
         onLoaded: () => {
-             // For ?sketch=... we might want to trigger a save to persist it?
-             // Or maybe not, keep it read-only until user edits?
-             // Previous logic saved it. Let's save.
              saveProjectAndFiles();
         }
     });
 
     if (urlLoaded) return;
 
-    // 2. LocalStorage
-    const savedProject = localStorage.getItem(PROJECT_KEY);
-    if (savedProject) {
-        try {
-            projectFiles = JSON.parse(savedProject);
-            // Ensure sketch.py exists
-            if (!projectFiles['sketch.py']) {
-                projectFiles['sketch.py'] = "";
-            }
-            // Ensure valid currentFile
-            if (!projectFiles[currentFile]) {
-                currentFile = 'sketch.py';
-            }
-            
-
-            // Load Project Name first to prevent overwrite in switchToFile -> saveProjectAndFiles
-            const savedName = localStorage.getItem(PROJECT_NAME_KEY);
-            if (savedName) projectName = savedName;
-            updateProjectNameUI();
-
-            updateFileList(); // Refresh UI list
-            switchToFile(currentFile, false); // Load content
-            
-            return; // STOP here if loaded successfully
-            
-        } catch (e) {
-            console.error("Failed to parse project:", e);
-            // Fallback
-        }
+    // 2. LocalStorage (Scoped) - Already loaded by initProjectID into 'projectFiles' state if found
+    // We just need to check if 'projectFiles' is populated (beyond default empty).
+    // Actually initProjectID tries to populate 'projectFiles'.
+    
+    // Update UI if we have data
+    if (Object.keys(projectFiles).length > 0 && projectFiles['sketch.py']) {
+         updateProjectNameUI();
+         updateFileList();
+         switchToFile(currentFile, false);
+         return;
     }
     
-    // 2.a Legacy Migration (Only if no new project found)
-    if (!savedProject) {
-        const oldSavedCode = localStorage.getItem('py5script_autosave'); 
-        if (oldSavedCode) {
-             console.log("Migrating legacy autosave...");
-             projectFiles['sketch.py'] = oldSavedCode;
-             isProgrammaticChange = true;
-             editor.setValue(oldSavedCode);
-             isProgrammaticChange = false;
-             updateFileList();
-             saveProjectAndFiles(); // Migrate to new format
-             localStorage.removeItem('py5script_autosave'); // Clean up
-             return;
-        }
-    }
-    
-    // 3. Default
+    // 3. Default (Fallback)
+    // If we are here, initProjectID set ID but found no data (Fresh Project)
+    // Load default sketch.py template
     try {
          const response = await fetch('sketch.py'); 
          if (response.ok) {
@@ -408,7 +379,12 @@ async function initializeIDE() {
          updateFileList();
     }
     editor.clearSelection();
+    
+    // Ensure registry updated for this new project
+    saveProjectAndFiles();
 }
+    
+
 
 
 // --- GLOBAL EVENT LISTENERS ---
@@ -497,7 +473,7 @@ clearConsoleBtn.addEventListener('click', () => {
 // User said: "load button will necessarily erase all files... If any file was changed after the last 'Save'".
 // This implies the 'Save' button is the way to 'Persist' state as a Zip.
 // So yes, Save Button -> triggerExport()
-const saveBtn = document.getElementById('save-btn');
+// Reusing saveBtn defined at top for Download
 saveBtn.addEventListener('click', triggerExport);
 
 newBtn.addEventListener('click', newProject);
@@ -595,6 +571,104 @@ renameBtn.addEventListener('click', () => {
         saveProjectAndFiles(); // Persist changes
     }
 });
+
+// --- PROJECTS MODAL LOGIC ---
+const projectsModal = document.getElementById('projects-modal');
+const closeProjectsBtn = document.getElementById('close-projects-btn');
+const projectList = document.getElementById('project-list');
+
+function openProjectsModal() {
+    renderProjectList();
+    projectsModal.style.display = 'block';
+    document.getElementById('modal-overlay').style.display = 'block';
+}
+
+function closeProjectsModal() {
+    projectsModal.style.display = 'none';
+    document.getElementById('modal-overlay').style.display = 'none';
+}
+
+function renderProjectList() {
+    projectList.innerHTML = '';
+    const registry = getProjectRegistry(); // from project_manager.js
+    const ids = Object.keys(registry);
+    
+    // Sort by lastModified desc
+    ids.sort((a, b) => (registry[b].lastModified || 0) - (registry[a].lastModified || 0));
+    
+    if (ids.length === 0) {
+        projectList.innerHTML = '<li style="color:#aaa; padding:10px;">No saved projects.</li>';
+        return;
+    }
+    
+    ids.forEach(id => {
+        const p = registry[id];
+        const li = document.createElement('li');
+        li.style.padding = '10px';
+        li.style.borderBottom = '1px solid #444';
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.alignItems = 'center';
+        
+        // Info Div
+        const info = document.createElement('div');
+        info.style.cursor = 'pointer';
+        info.style.flex = '1';
+        info.onclick = () => {
+            // Open Project
+            window.location.href = `ide.html?id=${p.id}`;
+        };
+        
+        const name = document.createElement('div');
+        name.style.fontWeight = 'bold';
+        name.style.color = '#fff';
+        name.textContent = p.name || p.id;
+        
+        const meta = document.createElement('div');
+        meta.style.fontSize = '0.8em';
+        meta.style.color = '#aaa';
+        const date = p.lastModified ? new Date(p.lastModified).toLocaleString() : 'Unknown';
+        meta.textContent = `Last modified: ${date}`;
+        
+        info.appendChild(name);
+        info.appendChild(meta);
+        li.appendChild(info);
+        
+        // Delete Button
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '🗑';
+        delBtn.style.background = 'transparent';
+        delBtn.style.border = 'none';
+        delBtn.style.color = '#d9534f';
+        delBtn.style.cursor = 'pointer';
+        delBtn.style.fontSize = '1.2em';
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete project "${p.name}"? This cannot be undone.`)) {
+                deleteProjectFromRegistry(p.id); // from project_manager.js
+                renderProjectList(); // Re-render
+            }
+        };
+        
+        li.appendChild(delBtn);
+        projectList.appendChild(li);
+    });
+}
+
+openBtn.addEventListener('click', openProjectsModal);
+closeProjectsBtn.addEventListener('click', closeProjectsModal);
+
+// Update window.onclick to handle projects modal too
+const originalWindowOnClick = window.onclick;
+window.onclick = function(event) {
+    if (originalWindowOnClick) originalWindowOnClick(event);
+    if (event.target == projectsModal) closeProjectsModal();
+    if (event.target == document.getElementById('modal-overlay')) {
+        closeSettings();
+        closeProjectsModal();
+    }
+}
+
 
 // Start
 initializeIDE();

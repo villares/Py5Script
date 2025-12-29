@@ -1,14 +1,54 @@
-
 // --- STATE ---
-const PROJECT_KEY = 'py5script_project';
-// Removed ASSET_STORAGE_KEY
+const PROJECT_REGISTRY_KEY = 'py5script_projects_index';
+const PROJECT_KEY_PREFIX = 'project_';
 
-const PROJECT_NAME_KEY = 'py5script_project_name';
-
+let projectId = null; // Will be set by initProjectID
 let projectFiles = { 'sketch.py': '' };
 let projectName = "My Project";
 let currentFile = 'sketch.py';
-let isDirty = localStorage.getItem('py5script_is_dirty') === 'true';
+let isDirty = localStorage.getItem('py5script_is_dirty') === 'true'; // This might need scoping too, but let's keep simple for now or scope it? 
+// Actually isDirty is per window session usually, but if we reload we want to know?
+// Let's scope isDirty too: 'project_{id}_dirty'
+
+// --- REGISTRY HELPERS ---
+function getProjectRegistry() {
+    try {
+        const data = localStorage.getItem(PROJECT_REGISTRY_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        console.error("Registry parse error", e);
+        return {};
+    }
+}
+
+function saveProjectRegistry(registry) {
+    localStorage.setItem(PROJECT_REGISTRY_KEY, JSON.stringify(registry));
+}
+
+function updateRegistryEntry(id, name, lastExported = null) {
+    const registry = getProjectRegistry();
+    if (!registry[id]) registry[id] = {};
+    
+    registry[id].id = id;
+    registry[id].name = name;
+    registry[id].lastModified = Date.now();
+    if (lastExported) registry[id].lastExported = lastExported;
+    
+    saveProjectRegistry(registry);
+}
+
+function deleteProjectFromRegistry(id) {
+    const registry = getProjectRegistry();
+    if (registry[id]) {
+        delete registry[id];
+        saveProjectRegistry(registry);
+        
+        // Remove actual data
+        localStorage.removeItem(`${PROJECT_KEY_PREFIX}${id}_files`);
+        localStorage.removeItem(`${PROJECT_KEY_PREFIX}${id}_name`);
+        localStorage.removeItem(`${PROJECT_KEY_PREFIX}${id}_dirty`);
+    }
+}
 
 
 
@@ -76,16 +116,28 @@ function getCurrentCode() {
 }
 
 function saveProjectAndFiles() {
+    if (!projectId) {
+        console.warn("No Project ID set, skipping save.");
+        return;
+    }
+
     // If editor exists and current file is text, sync it
     if (typeof editor !== 'undefined' && editor.getValue && !isBinary(projectFiles[currentFile])) {
         projectFiles[currentFile] = editor.getValue();
     }
-    // Save as JSON object
-    localStorage.setItem(PROJECT_KEY, JSON.stringify(projectFiles));
     
-    // Save Project Name
-    localStorage.setItem(PROJECT_NAME_KEY, projectName);
-    localStorage.setItem('py5script_is_dirty', isDirty);
+    // Save to Scoped Storage
+    const keyFiles = `${PROJECT_KEY_PREFIX}${projectId}_files`;
+    const keyName = `${PROJECT_KEY_PREFIX}${projectId}_name`;
+    const keyDirty = `${PROJECT_KEY_PREFIX}${projectId}_dirty`;
+
+    localStorage.setItem(keyFiles, JSON.stringify(projectFiles));
+    localStorage.setItem(keyName, projectName);
+    localStorage.setItem(keyDirty, isDirty);
+    
+    // Update Registry
+    updateRegistryEntry(projectId, projectName);
+
     if (typeof updateProjectNameUI === 'function') updateProjectNameUI();
 }
 
@@ -318,34 +370,100 @@ async function loadProjectFromURL(callbacks = {}) {
 }
 
 async function newProject() {
+    // Just redirect to a fresh URL with a new ID
+    // We don't check dirty here because we're opening a "new" clean project in a way (or same window)
+    // Actually users expect "New" to replace current if single window.
     if (!checkDirty()) return;
-
-    let defaultSketch = "def setup():\n    p5.createCanvas(400, 400)\n\ndef draw():\n    p5.background(220)";
     
-    try {
-        const response = await fetch('sketch.py');
-        if (response.ok) {
-            defaultSketch = await response.text();
+    const newName = generateProjectName(); // from name_generator.js
+    // We rely on slug as ID for simplicity as per plan
+    const newId = newName; 
+    
+    // Redirect
+    window.location.href = `ide.html?id=${newId}`;
+}
+
+// --- INITIALIZATION (ID & Migration) ---
+async function initProjectID() {
+    const params = new URLSearchParams(window.location.search);
+    const idParam = params.get('id');
+    
+    if (idParam) {
+        projectId = idParam;
+        
+        // Try to load scoped data
+        const keyFiles = `${PROJECT_KEY_PREFIX}${projectId}_files`;
+        const keyName = `${PROJECT_KEY_PREFIX}${projectId}_name`;
+        const keyDirty = `${PROJECT_KEY_PREFIX}${projectId}_dirty`; // Optional loading
+        
+        const savedFiles = localStorage.getItem(keyFiles);
+        const savedName = localStorage.getItem(keyName);
+        
+        if (savedFiles) {
+            try {
+                projectFiles = JSON.parse(savedFiles);
+                if (savedName) projectName = savedName;
+                isDirty = false; // Reset dirty on fresh load unless we tracking session crash?
+                // Let's assume clean load
+            } catch(e) {
+                console.error("Error loading project files", e);
+            }
+        } else {
+            // ID exists in URL but no data? 
+            // 1. Could be a totally new project with a custom name user typed?
+            // 2. Could be valid.
+            // Initialize empty.
+            // If the ID looks like it came from us (adjective-noun), nice.
+            // Just init defaults.
+            // We do NOT fetch default sketch here, initializeIDE does that fallback.
+            
+            // Set name from ID if looks reasonable (replace - with space, capitalize)
+            // Or just keep ID as name initially?
+            // Let's set projectName to title-cased ID if it's new
+            const readable = projectId.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+            projectName = readable;
+            // projectFiles initialized empty/default later in initializeIDE fallback
         }
-    } catch (e) {
-        console.warn("Failed to fetch default sketch.py, using fallback.");
+        
+    } else {
+        // NO ID -> MIGRATION or NEW
+        
+        // Check legacy global key
+        const legacyKey = 'py5script_project';
+        const legacyData = localStorage.getItem(legacyKey);
+        
+        if (legacyData) {
+            // MIGRATION
+            console.log("Migrating legacy project...");
+            const newName = generateProjectName();
+            const newId = newName;
+            
+            // Save to new scoped keys
+            const oldName = localStorage.getItem('py5script_project_name') || "My Parsed Project";
+            
+            localStorage.setItem(`${PROJECT_KEY_PREFIX}${newId}_files`, legacyData);
+            localStorage.setItem(`${PROJECT_KEY_PREFIX}${newId}_name`, oldName);
+            localStorage.setItem(`${PROJECT_KEY_PREFIX}${newId}_dirty`, 'false');
+            
+            // Add to registry
+            updateRegistryEntry(newId, oldName);
+            
+            // WIPE legacy (Safety first? Maybe keep as backup? No, conflicting.)
+            localStorage.removeItem(legacyKey);
+            localStorage.removeItem('py5script_project_name');
+            localStorage.removeItem('py5script_is_dirty');
+            
+            // Redirect
+            window.location.href = `ide.html?id=${newId}`;
+            return false; // Stop loading
+        } else {
+            // NEW FRESH PROJECT
+            const newName = generateProjectName();
+            // Redirect
+            window.location.href = `ide.html?id=${newName}`;
+            return false;
+        }
     }
-
-    projectFiles = {
-        'sketch.py': defaultSketch
-    };
-    currentFile = 'sketch.py';
-    projectName = "My Project";
     
-    // UI Updates
-    if (typeof editor !== 'undefined') {
-        editor.setValue(projectFiles['sketch.py']);
-        editor.clearSelection();
-        editor.setReadOnly(false);
-    }
-    if (typeof updateFileList === 'function') updateFileList();
-    if (typeof updateProjectNameUI === 'function') updateProjectNameUI();
-    
-    isDirty = false; // Reset to clean state
-    saveProjectAndFiles();
+    return true; // Continue loading
 }
