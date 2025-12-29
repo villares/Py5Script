@@ -446,7 +446,49 @@ async function loadProjectFromURL(callbacks = {}) {
         }
     }
 
-    // 2. URL Sketch/Project File (?sketch=...)
+    // 2. URL ZIP Base64 (?zip=...)
+    if (params.has('zip')) {
+        const compressed = params.get('zip');
+        const base64 = LZString.decompressFromEncodedURIComponent(compressed);
+        if (base64) {
+             try {
+                 const zip = await JSZip.loadAsync(base64, {base64: true});
+                 // Reuse logic similar to ZIP import but populate projectFiles directly
+                 projectFiles = {}; // clear
+                 
+                 for (const filename in zip.files) {
+                     if (zip.files[filename].dir) continue;
+                     
+                     const file = zip.file(filename);
+                     const textExts = ['.py', '.txt', '.csv', '.json', '.md', '.xml', '.yaml', '.gsdict', '.vert', '.frag', '.glsl'];
+                     const isText = textExts.some(ext => filename.toLowerCase().endsWith(ext));
+    
+                     if (isText) {
+                         projectFiles[filename] = await file.async("string");
+                     } else {
+                         const b64 = await file.async("base64");
+                         let mime = 'application/octet-stream';
+                         if (filename.endsWith('.png')) mime = 'image/png';
+                         else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) mime = 'image/jpeg';
+                         else if (filename.endsWith('.gif')) mime = 'image/gif';
+                         
+                         projectFiles[filename] = `data:${mime};base64,${b64}`;
+                     }
+                 }
+                 
+                 currentFile = 'sketch.py';
+                 if (!projectFiles['sketch.py']) {
+                      const keys = Object.keys(projectFiles);
+                      if (keys.length > 0) currentFile = keys[0];
+                 }
+                 loaded = true;
+             } catch(e) {
+                 err(`Error decompressing ZIP URL: ${e}`);
+             }
+        }
+    }
+
+    // 3. URL Sketch/Project File (?sketch=...)
     else if (params.has('sketch')) {
         const sketchUrl = params.get('sketch');
         const filename = sketchUrl.split('/').pop() || 'sketch.py';

@@ -252,15 +252,52 @@ function stopSketch() {
 
 // --- LINKING ---
 function generateShareLink() {
-    const code = editor.getValue();
-    const compressed = LZString.compressToEncodedURIComponent(code);
-    const url = window.location.origin + window.location.pathname.replace('ide.html', 'view.html') + '?code=' + compressed;
+    const fileKeys = Object.keys(projectFiles);
     
-    navigator.clipboard.writeText(url).then(() => {
-        alert("Link copied to clipboard! Share it with anyone.");
-    }).catch(err => {
-        prompt("Copy this link:", url);
-    });
+    // Check if simple single-file text
+    const isSingleText = fileKeys.length === 1 && fileKeys[0] === 'sketch.py' && !isBinary(projectFiles['sketch.py']);
+    
+    if (isSingleText) {
+        const code = projectFiles['sketch.py'];
+        const compressed = LZString.compressToEncodedURIComponent(code);
+        const url = window.location.origin + window.location.pathname.replace('ide.html', 'view.html') + '?code=' + compressed;
+        
+        navigator.clipboard.writeText(url).then(() => {
+            alert("Link copied to clipboard! Share it with anyone.");
+        }).catch(err => {
+            prompt("Copy this link:", url);
+        });
+    } else {
+        // Multi-file or Binary -> ZIP
+        const zip = new JSZip();
+        for (const filename in projectFiles) {
+            const content = projectFiles[filename];
+             if (isBinary(content)) {
+                 const parts = content.split(',');
+                 if (parts.length === 2) {
+                     zip.file(filename, parts[1], {base64: true});
+                 }
+             } else {
+                 zip.file(filename, content);
+             }
+        }
+        
+        zip.generateAsync({type:"base64"}).then(function(base64) {
+             const compressed = LZString.compressToEncodedURIComponent(base64);
+             const url = window.location.origin + window.location.pathname.replace('ide.html', 'view.html') + '?zip=' + compressed;
+             
+             // Check length warning
+             if (url.length > 2000) {
+                 if(!confirm(`Warning: The share link is very long (${url.length} chars) and might not work in some browsers/apps. Continue?`)) return;
+             }
+             
+             navigator.clipboard.writeText(url).then(() => {
+                alert("Link copied to clipboard!");
+            }).catch(err => {
+                prompt("Copy this link:", url);
+            });
+        });
+    }
 }
 
 

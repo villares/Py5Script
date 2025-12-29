@@ -116,36 +116,44 @@
 
         // --- RUNNER ---
         async function initView() {
+            // 0. Init ID (View Mode Session)
+            // We need a temporary ID to store the viewed project so runner can hydrate it.
+            // Let's use 'view-session' or a hash?
+            // Actually, if we use 'view-session', multiple tabs might conflict.
+            // Ideally we use a random ID.
+            projectId = 'view-' + Date.now();
+            
             // 1. URL Loading
             const urlLoaded = await loadProjectFromURL({
                  onImport: (msg) => logToConsole(msg, 'print'),
                  onError: (msg) => logToConsole(msg, 'error'),
-                 onLoaded: () => runSketch()
+                 onLoaded: () => {
+                     // Save to Scoped Storage so runner can find it
+                     saveProjectAndFiles();
+                     runSketch();
+                 }
             });
             if (urlLoaded) return;
             
             // 2. LocalStorage (Default to viewing what was last edited?)
-            // Usually 'View' implies viewing a specific artifact.
-            // If no code param, let's load from LocalStorage just like IDE
-            const savedProject = localStorage.getItem(PROJECT_KEY);
-            if (savedProject) {
-                try {
-                    projectFiles = JSON.parse(savedProject);
-                    runSketch();
-                } catch(e) {}
-            }
+            // Fallback: If no params, try to show the user's last active project if possible?
+            // Or just show error?
+            // Existing logic showed 'PROJECT_KEY' (legacy).
+            logToConsole("No project specified in URL.", "print");
         }
 
         function runSketch() {
-            // Find main file
-             // If sketch.py, use it. Else first file.
+             // Find main file
              let code = projectFiles['sketch.py'];
              if (!code && Object.keys(projectFiles).length > 0) {
                  code = projectFiles[Object.keys(projectFiles)[0]];
              }
              
-             if(code) {
-                 iframe.contentWindow.name = code;
+             if(code || Object.keys(projectFiles).length > 0) {
+                 // We don't need to pass code in window.name if we use ID hydration!
+                 // But runner supports both.
+                 // Let's pass code for backward comp, but ID is critical for assets.
+                 iframe.contentWindow.name = code || "";
                  
                  // Pass 'case' parameter if present
                  const params = new URLSearchParams(window.location.search);
@@ -155,6 +163,9 @@
                  if (caseParam) {
                      runnerUrl += '&case=' + caseParam;
                  }
+                 
+                 // Pass Project ID
+                 runnerUrl += '&id=' + projectId;
                  
                  iframe.src = runnerUrl;
              }
