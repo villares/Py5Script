@@ -193,13 +193,13 @@
                     
                     # Control Flow - Recurse but don't add vars directly
                     elif isinstance(n, (ast.If, ast.While, ast.Try)):
-                        for child in ast.iter_fields(n):
-                            if isinstance(child, list):
-                                for item in child:
+                        for field, value in ast.iter_fields(n):
+                            if isinstance(value, list):
+                                for item in value:
                                     if isinstance(item, ast.AST):
                                         visit_node_scope(item)
-                            elif isinstance(child, ast.AST):
-                                visit_node_scope(child)
+                            elif isinstance(value, ast.AST):
+                                visit_node_scope(value)
                     
                     # Scopes - STOP recursion. 
                     # Nested functions/classes create their own scope, so their locals aren't ours.
