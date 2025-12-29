@@ -430,7 +430,9 @@ async function initializeIDE() {
     editor.clearSelection();
     
     // Ensure registry updated for this new project
-    saveProjectAndFiles();
+    // DEFERRED: saveProjectAndFiles(); 
+    // We do NOT save immediately. Project is ephemeral until first edit.
+    updateProjectNameUI();
 }
     
 
