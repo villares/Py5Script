@@ -625,6 +625,11 @@ function renderProjectList() {
         info.style.flex = '1';
         info.onclick = () => {
             // Open Project
+            console.log(`Opening project: ${p.name} (ID: ${p.id})`);
+            if (p.id === projectId) {
+                alert("This project is already open.");
+                return;
+            }
             window.location.href = `ide.html?id=${p.id}`;
         };
         
