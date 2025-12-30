@@ -394,6 +394,12 @@ async function initializeIDE() {
 
     if (urlLoaded) return;
 
+    // Check for failed URL load (to avoid creating empty project on 404)
+    if (params.has('sketch')) {
+        alert("The requested sketch or project could not be found.");
+        return;
+    }
+
     // 2. LocalStorage (Scoped) - Already loaded by initProjectID into 'projectFiles' state if found
     // We just need to check if 'projectFiles' is populated (beyond default empty).
     // Actually initProjectID tries to populate 'projectFiles'.

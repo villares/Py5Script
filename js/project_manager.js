@@ -207,10 +207,15 @@ function checkDirty() {
     return true;
 }
 
-async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
+async function loadProjectFromBlob(blob, filenameHint, callbacks = {}, options = {}) {
+     // options: { redirect: boolean (default true) }
+     const shouldRedirect = options.redirect !== false;
+
      // callbacks: { onImport: (msg)=>void, onError: (msg)=>void, onUpdateUI: ()=>void }
      const log = callbacks.onImport || console.log;
      const err = callbacks.onError || console.error;
+
+
 
      // We don't check dirty on upload anymore because we are NOT overwriting the current project.
      // We are creating a NEW project.
@@ -337,10 +342,25 @@ async function loadProjectFromBlob(blob, filenameHint, callbacks = {}) {
      updateRegistryEntry(newId, newProjectName);
 
      // Callback before redirect?
-     if (callbacks.onImport) callbacks.onImport(`Project imported as ${newProjectName}. Redirecting...`);
+     if (callbacks.onImport) callbacks.onImport(`Project imported as ${newProjectName}.`);
 
      // Redirect
-     window.location.href = `ide.html?id=${newId}`;
+     if (shouldRedirect) {
+         window.location.href = `ide.html?id=${newId}`;
+     } else {
+        // Hydrate in-place
+        projectId = newId;
+        projectName = newProjectName;
+        projectFiles = newProjectFiles;
+        isDirty = false;
+        
+        // Ensure currentFile is valid
+        if (!projectFiles[currentFile]) {
+             const keys = Object.keys(projectFiles);
+             if (keys.length > 0) currentFile = keys[0];
+             else currentFile = 'sketch.py';
+        }
+     }
 }
 
 // --- EXPORT ---
@@ -497,7 +517,7 @@ async function loadProjectFromURL(callbacks = {}) {
                  const response = await fetch(sketchUrl);
                  if (response.ok) {
                      const blob = await response.blob();
-                     await loadProjectFromBlob(blob, filename, callbacks);
+                     await loadProjectFromBlob(blob, filename, callbacks, { redirect: false });
                      loaded = true;
                      // removed early return to allow onLoaded callback below
                  }
@@ -509,7 +529,7 @@ async function loadProjectFromURL(callbacks = {}) {
                     // Or reuse loadProjectFromBlob?
                     // Let's reuse loadProjectFromBlob for text too
                     const blob = new Blob([text], {type: 'text/plain'});
-                    await loadProjectFromBlob(blob, filename, callbacks);
+                    await loadProjectFromBlob(blob, filename, callbacks, { redirect: false });
                     loaded = true;
                  } else {
                     err(`Failed to fetch sketch: ${sketchUrl} (${response.status})`);
