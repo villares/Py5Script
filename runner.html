@@ -83,6 +83,7 @@
         import sys
         import json
         import base64
+        import asyncio
         from pyodide.ffi import create_proxy, to_js
 
         # Global P5 instance
@@ -602,7 +603,8 @@
             proxy = create_proxy(sketch)
             js.window.p5.new(proxy)
 
-        await entry_point()
+        import asyncio
+        asyncio.ensure_future(entry_point())
     </script>
 </body>
 </html>
