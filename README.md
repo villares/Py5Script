@@ -6,13 +6,10 @@ A web-based IDE for running [p5.js](https://p5js.org/) sketches using Python, po
 
 The IDE provides a clean interface for coding, managing files, and running sketches.
 
-## Interface Overview
-
-The IDE provides a clean interface for coding, managing files, and running sketches.
-
 ### Toolbar Controls
-- **▶ Run**: Executes the current sketch in the preview panel.
-- **■ Stop**: Stops the running sketch and resets the preview.
+- **▶ (Run)**: Executes the current sketch in the preview panel.
+- **🔗 (View)**: Opens the current project in the separate **Viewer Mode** (`view.html`). This effectively saves your changes and opens a clean, full-screen runner in a new tab.
+- **■ (Stop)**: Stops the running sketch and resets the preview.
 - **📄 New**: Creates a fresh, empty project with a unique ID.
 - **📂 Open**: Opens a modal list of all your locally saved projects to switch between.
 - **💾 Download**: Exports the project to your computer.
@@ -32,6 +29,11 @@ The sidebar on the left displays all files in your current project.
 - **Upload File (Sidebar ⬆)**: Upload images, data, or scripts **into the current project**.
 - **Viewing**: Click a file to view/edit it. (Binary files like images are read-only placeholders).
 
+### Project Management & Storage
+- **Local Storage**: All projects are stored in your browser's `localStorage` using unique IDs (e.g., `project_my-cool-sketch_files`).
+- **Persistence**: Changes are auto-saved to local storage as you type (debounced).
+- **Listing**: The "Open" button reads the registry of all saved projects.
+
 ## How It Works
 
 ### Python & p5.js Integration
@@ -46,24 +48,29 @@ This IDE simplifies writing p5.js sketches in Python by abstracting away the glo
     - `rect(10, 10, 50, 50)` -> `P5.rect(10, 10, 50, 50)`
     - `print("Hello")` -> `print("Hello")` (Python built-in)
 
+## Asset Management
+You can upload assets (images, fonts, shaders, CSVs) via the sidebar. These are stored as Base64 Data URLs within your project data.
+- **Python**: `open("data.txt")` works as expected.
+- **p5.js**: `P5.loadImage("cat.png")` works as expected (the system intercepts the call and provides the stored data).
+- **Shaders**: You can create `.vert` and `.frag` files and load them using `P5.loadShader("shader.vert", "shader.frag")`.
+
 ### Snake Case Support
 You can optionally write p5.js code using `snake_case`. The IDE automatically converts it to `camelCase`.
 - `create_canvas(400, 400)` -> `P5.createCanvas(400, 400)`
 - `def mouse_pressed():` -> registers `mousePressed`
 
-### Project Management & Storage
-- **Local Storage**: All projects are stored in your browser's `localStorage` using unique IDs (e.g., `project_my-cool-sketch_files`).
-- **Persistence**: Changes are auto-saved to local storage as you type (debounced).
-- **Listing**: The "Open" button reads the registry of all saved projects.
 
 ### Modes: IDE vs Viewer
-1.  **IDE Mode (`ide.html`)**: The full integrated development environment.
+1.  **IDE Mode (`ide.html`)**: The full integrated development environment for coding and managing projects.
 2.  **Viewer Mode (`view.html`)**: A minimal, full-screen runner.
-    - Can load shared projects via `?zip=` or `?code=`.
-    - Useful for sharing finished work.
+    - **Existing Projects**: `view.html?id=my-project` loads your locally saved project in **Read-Only** mode. It checks your local storage but does not modify it.
+    - **External Content**: `view.html?sketch=...` creates a temporary, isolated session for viewing shared code without cluttering your local registry.
+    - **Edit Button**: The viewer includes a floating "Edit" button that smartly redirects you back to the IDE, preserving your context.
 
 ### URL Parameters
-- `?id=<project-id>`: Loads a locally saved project by its ID.
+- `?id=<project-id>`: Loads a locally saved project.
+    - In `ide.html`, this opens the project for editing.
+    - In `view.html`, this runs the project in read-only mode.
 - `?sketch=<url>`: Imports a project from an external URL (zip or py).
 - `?code=<lz_string>`: Loads a single-file sketch from the URL hash.
 - `?zip=<base64_lz_string>`: Loads a multi-file project from the URL hash.
@@ -86,11 +93,6 @@ python3 -m http.server 8000
 npx http-server .
 ```
 
-## Asset Management
-You can upload assets (images, fonts, shaders, CSVs) via the sidebar. These are stored as Base64 Data URLs within your project data.
-- **Python**: `open("data.txt")` works as expected.
-- **p5.js**: `P5.loadImage("cat.png")` works as expected (the system intercepts the call and provides the stored data).
-- **Shaders**: You can create `.vert` and `.frag` files and load them using `P5.loadShader("shader.vert", "shader.frag")`.
 
 ## License
 MIT
