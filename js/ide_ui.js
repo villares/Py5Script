@@ -15,6 +15,7 @@ const clearConsoleBtn = document.getElementById('clear-console');
 
 const runBtn = document.getElementById('run-btn');
 const stopBtn = document.getElementById('stop-btn');
+const viewBtn = document.getElementById('view-btn');
 const newBtn = document.getElementById('new-btn');
 const openBtn = document.getElementById('open-btn');
 const loadBtn = document.getElementById('load-btn'); // Now "Upload"
@@ -736,4 +737,18 @@ window.onclick = function(event) {
 
 // Start
 initializeIDE();
-
+// --- VIEW BUTTON ---
+if (viewBtn) {
+    viewBtn.addEventListener('click', () => {
+        // 1. Force Save (Sync editor to projectFiles -> LocalStorage)
+        projectFiles[currentFile] = editor.getValue();
+        saveProjectAndFiles();
+        
+        // 2. Open View
+        if (projectId) {
+            window.open(`view.html?id=${projectId}`, '_blank');
+        } else {
+            alert("Project ID not found. Please save first.");
+        }
+    });
+}

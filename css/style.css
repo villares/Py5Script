@@ -59,6 +59,11 @@ button:active {
     background: #28a745;
 }
 
+.btn-view {
+    background: #17a2b8;
+    /* Cyan/Info color, distinct from Green Run and Red Stop */
+}
+
 .btn-stop {
     background: #dc3545;
 }
