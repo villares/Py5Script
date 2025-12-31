@@ -27,17 +27,21 @@ function saveSettings() {
 }
 
 function applySettings() {
+    const logo = document.getElementById('header-logo');
+
     // 1. Theme
     if (currentSettings.theme === 'light') {
         document.body.classList.add('light-theme');
         if (typeof editor !== 'undefined' && editor.setTheme) {
             editor.setTheme("ace/theme/chrome"); 
         }
+        if (logo) logo.src = "logo_light.png";
     } else {
         document.body.classList.remove('light-theme');
         if (typeof editor !== 'undefined' && editor.setTheme) {
             editor.setTheme("ace/theme/monokai");
         }
+        if (logo) logo.src = "logo_dark.png";
     }
 
     // 2. Editor Options
