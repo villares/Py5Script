@@ -7,9 +7,9 @@ A web-based IDE for running [p5.js](https://p5js.org/) sketches using Python, po
 The IDE provides a clean interface for coding, managing files, and running sketches.
 
 ### Toolbar Controls
-- **▶ (Run)**: Executes the current sketch in the preview panel.
-- **🔗 (View)**: Opens the current project in the separate **Viewer Mode** (`view.html`). This effectively saves your changes and opens a clean, full-screen runner in a new tab.
-- **■ (Stop)**: Stops the running sketch and resets the preview.
+- **▶️ (Run)**: Executes the current sketch in the preview panel.
+- **↗️ (View)**: Opens the current project in the separate **Viewer Mode** (`view.html`). This effectively saves your changes and opens a clean, full-screen runner in a new tab.
+- **⏹️ (Stop)**: Stops the running sketch and resets the preview.
 - **📄 New**: Creates a fresh, empty project with a unique ID.
 - **📂 Open**: Opens a modal list of all your locally saved projects to switch between.
 - **💾 Download**: Exports the project to your computer.
@@ -22,7 +22,7 @@ The IDE provides a clean interface for coding, managing files, and running sketc
 - **⚙️ Settings**: Customizes the editor experience (Theme, Font Size, Tabs, whitespace).
 
 ### File Management & Assets
-The sidebar on the left displays all files in your current project.
+The sidebar on the left displays all files in your current project, including code and assets
 - **Files**: Listing of all code and asset files.
 - **sketch.py**: The main entry point.
 - **Add File (+)**: Create new python modules or shader files (`.vert`, `.frag`, `.glsl`).
@@ -31,8 +31,8 @@ The sidebar on the left displays all files in your current project.
 
 ### Project Management & Storage
 - **Local Storage**: All projects are stored in your browser's `localStorage` using unique IDs (e.g., `project_my-cool-sketch_files`).
-- **Persistence**: Changes are auto-saved to local storage as you type (debounced).
-- **Listing**: The "Open" button reads the registry of all saved projects.
+- **Persistence**: Changes are auto-saved to local storage as you type (debounced). Use the "Download" button to export your project to your computer.
+- **Listing**: The "Open" button reads the registry of all saved projects so you can switch between them.
 
 ## How It Works
 
@@ -61,16 +61,13 @@ You can optionally write p5.js code using `snake_case`. The IDE automatically co
 
 
 ### Modes: IDE vs Viewer
-1.  **IDE Mode (`ide.html`)**: The full integrated development environment for coding and managing projects.
+1.  **IDE Mode (`ide.html`)**: The full integrated development environment.
 2.  **Viewer Mode (`view.html`)**: A minimal, full-screen runner.
-    - **Existing Projects**: `view.html?id=my-project` loads your locally saved project in **Read-Only** mode. It checks your local storage but does not modify it.
-    - **External Content**: `view.html?sketch=...` creates a temporary, isolated session for viewing shared code without cluttering your local registry.
-    - **Edit Button**: The viewer includes a floating "Edit" button that smartly redirects you back to the IDE, preserving your context.
+    - Can load shared projects via `?zip=` or `?code=`.
+    - Useful for sharing finished work.
 
 ### URL Parameters
-- `?id=<project-id>`: Loads a locally saved project.
-    - In `ide.html`, this opens the project for editing.
-    - In `view.html`, this runs the project in read-only mode.
+- `?id=<project-id>`: Loads a locally saved project by its ID.
 - `?sketch=<url>`: Imports a project from an external URL (zip or py).
 - `?code=<lz_string>`: Loads a single-file sketch from the URL hash.
 - `?zip=<base64_lz_string>`: Loads a multi-file project from the URL hash.
