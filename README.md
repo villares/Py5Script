@@ -54,6 +54,23 @@ You can upload assets (images, fonts, shaders, CSVs) via the sidebar. These are 
 - **p5.js**: `P5.loadImage("cat.png")` works as expected (the system intercepts the call and provides the stored data).
 - **Shaders**: You can create `.vert` and `.frag` files and load them using `P5.loadShader("shader.vert", "shader.frag")`.
 
+### External Packages (requirements.txt)
+To use external Python packages (like `numpy`, `pandas`, `faker`), create a file named `requirements.txt` in your project's root.
+
+1.  **Create File**: Click "New File" -> `requirements.txt`.
+2.  **Add Packages**: List one package per line.
+    ```text
+    numpy
+    pandas
+    ```
+3.  **Import**: In your `sketch.py`, import them as usual.
+    ```python
+    import numpy as np
+    def setup():
+        print(np.array([1, 2, 3]))
+    ```
+The runner will automatically install these packages from PyPI (via Pyodide/Micropip) before starting your sketch.
+
 ### Snake Case Support
 You can optionally write p5.js code using `snake_case`. The IDE automatically converts it to `camelCase`.
 - `create_canvas(400, 400)` -> `P5.createCanvas(400, 400)`
@@ -132,7 +149,7 @@ def setup():
 ## Deployment & Hosting
 
 ### GitHub Pages
-This project is ready to be hosted on GitHub Pages. The `index.html` redirects to `ide.html`.
+This project is hosted on GitHub Pages. The `index.html` redirects to `ide.html`.
 
 ### Local Hosting
 Due to CORS/Module security, you must use a local web server:
