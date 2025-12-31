@@ -127,7 +127,10 @@
 
                 # Explicitly exclude 'print' and other builtins/globals
                 # 'label' is often leaked from p5.prototype (as part of internal DOM attributes?) causing confusion.
-                exclusions = {'print', 'open', 'exit', 'quit', 'help', 'asset', 'label'}
+                exclusions = {
+                    'print', 'open', 'exit', 'quit', 'help', 'asset', 'label',
+                    'map', 'set', 'filter', 'min', 'max', 'abs', 'round', 'pow', 'sum'
+                }
                 self.p5_props -= exclusions
                 
                 self.p5_props.add('drawingContext')
