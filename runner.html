@@ -457,6 +457,16 @@
             import builtins
             globals()['open'] = builtins.open
 
+            # ------- py5 compatibility hacks ------------
+            def remap(*args):
+                return P5.map(*args)
+            globals()['remap'] = remap
+
+            def size(*args):
+                P5.background(200)
+                P5.fill('white')
+                return P5.createCanvas(*args)
+            globals()['size'] = size
 
 
             def sketch(p):
