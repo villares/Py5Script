@@ -1,6 +1,7 @@
 def setup():
-    createCanvas(400, 400)
+    create_canvas(400, 400)
+    background(220)
+
 
 def draw():
-    background(220)
-    ellipse(mouseX, mouseY, 50, 50)
+    ellipse(mouse_x, mouse_y, 50, 50)
