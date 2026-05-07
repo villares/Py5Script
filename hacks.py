@@ -9,6 +9,12 @@ def size(*args):
     P5.fill('white')
     return canvas
 
+def load_image(*args):
+    img = p5.loadImage(*args):
+    img.get_pixels = img.get
+    img.set_pixels = img.set
+    return img
+
 def _make_p5_pair(begin_attr, end_attr, end_args=()):
     """
     Returns a class that calls beginXxx() on construction and endXxx() on
@@ -30,6 +36,7 @@ def _make_p5_pair(begin_attr, end_attr, end_args=()):
 
 globals()['remap'] = remap
 globals()['size'] = size
+globals()['load_image'] = load_image
 globals()['begin_shape'] = _make_p5_pair('beginShape',  'endShape')
 globals()['begin_closed_shape'] = _make_p5_pair('beginShape',  'endShape', end_args=lambda: (P5.CLOSE,))
 globals()['begin_contour'] = _make_p5_pair('beginContour',  'endContour')
@@ -37,6 +44,8 @@ globals()['push_matrix'] = _make_p5_pair('push',  'pop')
 globals()['pop_matrix'] = lambda: P5.pop()
 globals()['push_style'] = _make_p5_pair('push',  'pop')
 globals()['pop_style'] = lambda: P5.pop()
+globals()['get_pixels'] = lambda: P5.get()
+globals()['set_pixels'] = lambda: P5.set()
 
 P5Transformer.custom_aliases['is_mouse_pressed'] = 'mouseIsPressed'
 P5Transformer.custom_aliases['is_key_pressed'] = 'keyIsPressed'
