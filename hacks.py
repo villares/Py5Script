@@ -10,7 +10,7 @@ def size(*args):
     return canvas
 
 def load_image(*args):
-    img = p5.loadImage(*args):
+    img = P5.loadImage(*args)
     img.get_pixels = img.get
     img.set_pixels = img.set
     return img
